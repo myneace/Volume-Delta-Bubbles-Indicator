@@ -1,52 +1,40 @@
 // ============================================================================
-//  High Volume Delta Bubbles  —  Quantower custom indicator
+//  Power Trades Bubbles  —  Quantower custom indicator
 // ----------------------------------------------------------------------------
-//  Plots a bubble on the price chart for every price level, inside every bar,
-//  where Quantower's Volume Analysis (cluster / footprint) data shows a
-//  strong imbalance between buy volume and sell volume ("delta").
+//  Plots a bubble on the price chart for every Power Trades zone detected by
+//  Quantower's built-in order-flow engine. Each zone represents a period where
+//  a large volume of aggressive orders accumulated within a short time window,
+//  creating a meaningful directional imbalance.
 //
-//  Why this needs cluster data (and not just bar volume):
-//  A normal volume indicator only knows one number per bar. Cluster data
-//  breaks that number down by the exact price it traded at, and by which
-//  side (buyer or seller) was aggressive at that price. That lets this
-//  indicator do three things a bar-volume indicator can't:
+//  Data source — Power Trades API:
+//    The indicator subscribes to Quantower's HistoryAggregationPowerTrades,
+//    the same engine that drives the native Power Trades panel. Zones are
+//    pre-filtered by the platform using the parameters set below. No Volume
+//    Analysis / Footprint data is required.
 //
-//    - POSITION each bubble at the real price where the imbalance happened
-//      (Y = that price, X = the bar's time) instead of approximating with
-//      hl2/close, the way a bar-volume overlay has to.
-//    - SIZE each bubble by how large the imbalance was, scaled against the
-//      strongest imbalance currently on screen, so the real hot-spots are
-//      always the biggest circles on the chart.
-//    - COLOR each bubble by which side was in control at that specific
-//      price (green = buyers, red = sellers), with fill strength also
-//      tracking imbalance strength.
+//  Bubble sizing:
+//    Each bubble's diameter is area-scaled by:
+//        Cumulative zone volume × |Delta%| / 100
+//    This rewards zones that are both large in total volume AND strongly
+//    directional — the same intuition as the old delta metric, but computed
+//    at the zone level rather than per price-tick.
 //
-//  Data requirement: the connected feed must provide trade-side (Bid/Ask)
-//  history for the symbol - the same data Quantower's own Cluster Chart and
-//  Footprint tools are built from. This works on any ordinary bar chart /
-//  timeframe; the chart does not need to be a Footprint/Cluster chart type.
+//  Bubble position:
+//    X  = zone formation time mapped to chart coordinates.
+//    Y  = zone mid-price  ((zone High + zone Low) / 2).
 //
-//  AUTO MINIMUM VOLUME (enabled by default):
-//    When "Auto min volume" is ON the indicator ignores the manual
-//    "Minimum volume per price level" value and instead:
-//      1. Scans the last N bars (Auto lookback bars) for all per-price volumes.
-//      2. Sorts those volumes and picks the configured percentile
-//         (Auto percentile %) as the effective minimum threshold.
-//    This means the threshold adapts automatically to each pair's typical
-//    tick size and liquidity profile — no manual tuning needed.
-//    Raise the percentile to see fewer, higher-conviction bubbles;
-//    lower it to include more mid-tier activity.
+//  Real-time streaming:
+//    New zones fire NewHistoryItem, which immediately triggers a redraw —
+//    no manual refresh needed.
 //
 //  Settings live in the indicator's "Settings" window once added to a chart:
-//    - Auto min volume / Auto lookback bars / Auto percentile %:
-//        automatic noise-floor detection — works across all pairs.
-//    - Minimum volume per price level (used only when Auto is OFF):
-//        manual override for the noise floor.
-//    - Minimum delta imbalance %:
-//        directional conviction filter.
-//    - Minimum/Maximum delta volume: volume-imbalance range filters.
-//    - Smallest/Largest bubble (px), Bubble fill opacity %: visual scaling.
-//    - Buy/Sell-dominant color, Show delta labels: cosmetics.
+//    Power Trades filters (applied at load time — reload to change):
+//      Lookback window, Min cumulative volume, Min/Max single-trade volume,
+//      Time interval, Basis volume interval, Min delta %, Min basis ratio %,
+//      Min/Max zone height.
+//    Visual controls (live-update on repaint):
+//      Smallest/Largest bubble (px), Bubble fill opacity %,
+//      Buy/Sell color, Show volume labels, Enable sound alerts.
 // ============================================================================
 
 using System;
@@ -55,52 +43,75 @@ using TradingPlatform.BusinessLayer;
 
 namespace VolumeDeltaBubbles
 {
-    public partial class HighVolumeDeltaBubbles : Indicator, IVolumeAnalysisIndicator
+    public partial class HighVolumeDeltaBubbles : Indicator
     {
         #region Input parameters
 
-        // ── Auto minimum-volume detection ─────────────────────────────────────
-        // When ON, the indicator computes the effective MinVolumeAtPrice from
-        // the historical distribution of per-price volumes for this symbol,
-        // so you never have to tune it manually.
+        // ── Power Trades history window ────────────────────────────────────────
+        // How many minutes of tick history to load on startup.  A wider window
+        // shows more historical zones but takes longer on first load.
+        [InputParameter("Lookback window (minutes)", 5, 1, 1440, 1, 0)]
+        public int LookbackMinutes = 30;
 
-        [InputParameter("Auto min volume", 5)]
-        public bool AutoMinVolume = true;
-
-        /// <summary>
-        /// Number of bars scanned backward from the rightmost visible bar to
-        /// build the volume distribution used for the percentile calculation.
-        /// More bars → smoother/more stable threshold.
-        /// Fewer bars → faster adaptation to regime changes.
-        /// </summary>
-        [InputParameter("Auto lookback bars", 7, 10, 5000, 10, 0)]
-        public int AutoLookbackBars = 200;
+        // ── Power Trades zone filters ──────────────────────────────────────────
+        // These mirror the parameters in Quantower's own Power Trades panel.
+        // IMPORTANT: They are baked into the data subscription at load time.
+        // Reload (remove + re-add) the indicator after changing any of them.
 
         /// <summary>
-        /// Percentile of the per-price volume distribution that becomes the
-        /// minimum volume threshold.
-        ///   70 → only the top 30 % of price levels qualify (moderate filter)
-        ///   80 → only the top 20 % qualify (stricter)
-        ///   90 → only the top 10 % qualify (very strict / high-conviction only)
-        /// Raise this if the chart is too busy; lower if you want more bubbles.
+        /// Minimum total cumulative volume that must accumulate within the
+        /// TimeInterval window for the event to qualify as a zone.
+        /// Raise this to suppress low-volume noise.
         /// </summary>
-        [InputParameter("Auto percentile %", 8, 50, 99, 1, 0)]
-        public int AutoPercentile = 75;
+        [InputParameter("Total Volume", 10, 0, 10000000, 1, 2)]
+        public double TotalVolume = 100;
 
-        // ── Manual override (used only when Auto min volume is OFF) ────────────
-        [InputParameter("Minimum volume per price level (manual)", 10, 0, 10000000, 1, 2)]
-        public double MinVolumeAtPrice = 20;
+        [InputParameter("Min. Trade Volume", 11, 0, 10000000, 1, 2)]
+        public double MinTradeVolume = 0;
 
-        // ── Other filters ─────────────────────────────────────────────────────
-        [InputParameter("Minimum delta imbalance %", 20, 0, 100, 1, 0)]
-        public double MinDeltaPercent = 50;
+        [InputParameter("Max. Trade Volume", 12, 0, 10000000, 1, 2)]
+        public double MaxTradeVolume = 1000000;
 
-        [InputParameter("Minimum delta volume", 30, 0, 10000000, 1, 2)]
-        public double MinDeltaVolume = 10;
+        /// <summary>
+        /// Rolling time window (seconds) within which trades must cluster to
+        /// be counted as a single Power Trades zone event.
+        /// Matches "Time interval" in the PT panel UI.
+        /// </summary>
+        [InputParameter("Time Interval (sec)", 13, 1, 3600, 1, 0)]
+        public int TimeInterval = 5;
 
-        [InputParameter("Maximum delta volume", 35, 0, 10000000, 1, 2)]
-        public double MaxDeltaVolume = 1000000;
+        /// <summary>
+        /// Reference window (seconds) used to compute the basis (baseline)
+        /// volume against which zone volume is compared.
+        /// Matches "Basis volume interval" in the PT panel UI.
+        /// </summary>
+        [InputParameter("Basis Volume Interval (sec)", 14, 1, 86400, 1, 0)]
+        public int BasisVolumeInterval = 300;
 
+        [InputParameter("Min. Zone Height (ticks)", 15, 0, 100000, 1, 0)]
+        public int MinZoneHeight = 0;
+
+        [InputParameter("Max. Zone Height (ticks)", 16, 0, 100000, 1, 0)]
+        public int MaxZoneHeight = 100000;
+
+        /// <summary>
+        /// Minimum absolute delta percent for a zone to qualify.
+        /// 50 = buy and sell volumes must differ by at least 50 % of the
+        /// zone's total cumulative volume (directional conviction filter).
+        /// Matches "Delta filter" in the PT panel UI.
+        /// </summary>
+        [InputParameter("Delta Filter (%)", 20, 0, 100, 1, 0)]
+        public double DeltaFilter = 50;
+
+        /// <summary>
+        /// Minimum basis ratio percent — filters out zones whose cumulative
+        /// volume is not significantly above the baseline.
+        /// Matches "Basis ratio filter" in the PT panel UI.
+        /// </summary>
+        [InputParameter("Basis Ratio Filter (%)", 25, 0, 100, 1, 0)]
+        public double BasisRatioFilter = 0;
+
+        // ── Visual controls ────────────────────────────────────────────────────
         [InputParameter("Smallest bubble (px)", 40, 1, 200, 1, 0)]
         public int MinBubbleSize = 6;
 
@@ -116,7 +127,7 @@ namespace VolumeDeltaBubbles
         [InputParameter("Sell-dominant color", 80)]
         public Color SellColor = Color.FromArgb(255, 226, 65, 82);
 
-        [InputParameter("Show delta labels", 90)]
+        [InputParameter("Show volume labels", 90)]
         public bool ShowLabels = false;
 
         [InputParameter("Enable sound alerts", 95)]
