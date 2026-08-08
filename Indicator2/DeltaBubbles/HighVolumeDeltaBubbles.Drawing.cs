@@ -96,11 +96,12 @@ namespace VolumeDeltaBubbles
 
                     double absDeltaPct = Math.Abs(pt.DeltaPercent);
 
-                    // Sizing metric: Cumulative volume × |Delta%| / 100
-                    //   This reflects both how large the zone was AND how
-                    //   directionally skewed it was — visually identical in
-                    //   spirit to the old per-tick AbsDelta metric.
-                    double sizingMetric = pt.Cumulative * absDeltaPct / 100.0;
+                    // Calculate sizing metric based on selected user preference.
+                    // CumulativeVolume (default) scales directly by zone contract volume so BIG trades are immediately obvious.
+                    double sizingMetric = (this.SizingMetric == BubbleSizingMetric.CumulativeVolume)
+                        ? pt.Cumulative
+                        : (pt.Cumulative * absDeltaPct / 100.0);
+
                     if (sizingMetric <= 0)
                         continue;
 
@@ -140,11 +141,23 @@ namespace VolumeDeltaBubbles
                 {
                     foreach (var c in candidates)
                     {
-                        // Perceptual (area-based) scaling: diameter grows with the
-                        // square root of the normalized magnitude so bubble AREA —
-                        // what the eye reads as "size" — tracks the metric linearly.
-                        double ratio    = Math.Max(0, Math.Min(1, c.AbsDelta / maxAbsDeltaVisible));
-                        double t        = Math.Sqrt(ratio);
+                        double ratio = Math.Max(0, Math.Min(1, c.AbsDelta / maxAbsDeltaVisible));
+                        double t;
+
+                        switch (this.ScalingMethod)
+                        {
+                            case BubbleScalingMethod.LinearDiameter:
+                                t = ratio;
+                                break;
+                            case BubbleScalingMethod.Logarithmic:
+                                t = Math.Log(1.0 + ratio * 9.0) / Math.Log(10.0);
+                                break;
+                            case BubbleScalingMethod.AreaScaled:
+                            default:
+                                t = Math.Sqrt(ratio);
+                                break;
+                        }
+
                         double diameter = this.MinBubbleSize + t * sizeRange;
 
                         double y = converter.GetChartY(c.Price);

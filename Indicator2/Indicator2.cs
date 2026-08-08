@@ -43,6 +43,19 @@ using TradingPlatform.BusinessLayer;
 
 namespace VolumeDeltaBubbles
 {
+    public enum BubbleSizingMetric
+    {
+        CumulativeVolume,
+        DeltaVolume
+    }
+
+    public enum BubbleScalingMethod
+    {
+        LinearDiameter,
+        AreaScaled,
+        Logarithmic
+    }
+
     public partial class HighVolumeDeltaBubbles : Indicator
     {
         #region Input parameters
@@ -112,11 +125,17 @@ namespace VolumeDeltaBubbles
         public double BasisRatioFilter = 0;
 
         // ── Visual controls ────────────────────────────────────────────────────
+        [InputParameter("Sizing metric", 30)]
+        public BubbleSizingMetric SizingMetric = BubbleSizingMetric.CumulativeVolume;
+
+        [InputParameter("Scaling method", 35)]
+        public BubbleScalingMethod ScalingMethod = BubbleScalingMethod.LinearDiameter;
+
         [InputParameter("Smallest bubble (px)", 40, 1, 200, 1, 0)]
-        public int MinBubbleSize = 6;
+        public int MinBubbleSize = 8;
 
         [InputParameter("Largest bubble (px)", 50, 1, 400, 1, 0)]
-        public int MaxBubbleSize = 34;
+        public int MaxBubbleSize = 50;
 
         [InputParameter("Bubble fill opacity %", 60, 5, 100, 1, 0)]
         public int Opacity = 75;
