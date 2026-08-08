@@ -60,6 +60,10 @@ namespace VolumeDeltaBubbles
     {
         #region Input parameters
 
+        // ── Symbol Profile Storage ─────────────────────────────────────────────
+        [InputParameter("Auto-load symbol settings", 2)]
+        public bool AutoLoadSymbolSettings = true;
+
         // ── Power Trades history window ────────────────────────────────────────
         // How many minutes of tick history to load on startup.  A wider window
         // shows more historical zones but takes longer on first load.
@@ -153,5 +157,41 @@ namespace VolumeDeltaBubbles
         public bool EnableAlerts = false;
 
         #endregion Input parameters
+
+        #region Custom Settings UI Override
+
+        public override System.Collections.Generic.IList<SettingItem> Settings
+        {
+            get
+            {
+                var settings = base.Settings;
+
+                settings.Add(new SettingItemAction("Save Symbol Parameters", (args) =>
+                {
+                    this.SaveSymbolSettings(true);
+                    return null;
+                }, 200));
+
+                settings.Add(new SettingItemAction("Load Symbol Parameters", (args) =>
+                {
+                    this.LoadSymbolSettings(true);
+                    return null;
+                }, 201));
+
+                settings.Add(new SettingItemAction("Reset Symbol Parameters", (args) =>
+                {
+                    this.DeleteSymbolSettings(true);
+                    return null;
+                }, 202));
+
+                return settings;
+            }
+            set
+            {
+                base.Settings = value;
+            }
+        }
+
+        #endregion Custom Settings UI Override
     }
 }

@@ -51,6 +51,12 @@ namespace VolumeDeltaBubbles
 
         protected override void OnInit()
         {
+            // Auto-load symbol specific custom parameters if enabled
+            if (this.AutoLoadSymbolSettings)
+            {
+                this.LoadSymbolSettings();
+            }
+
             // Build the Power Trades aggregation parameters from the indicator's
             // input settings and request tick-level history aggregated as PT zones.
             // The subscription streams new zones in real-time via NewHistoryItem.
