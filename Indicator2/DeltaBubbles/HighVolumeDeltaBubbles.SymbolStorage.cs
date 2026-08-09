@@ -32,14 +32,16 @@ namespace VolumeDeltaBubbles
         public int MinBubbleSize { get; set; } = 8;
         public int MaxBubbleSize { get; set; } = 50;
         public int Opacity { get; set; } = 75;
-        public int BuyColorArgb { get; set; } = Color.FromArgb(255, 0, 191, 99).ToArgb();
-        public int SellColorArgb { get; set; } = Color.FromArgb(255, 226, 65, 82).ToArgb();
+        public int BuyColorArgb { get; set; } = Color.FromArgb(255, 0, 245, 245).ToArgb();
+        public int SellColorArgb { get; set; } = Color.FromArgb(255, 245, 0, 245).ToArgb();
         public bool ShowLabels { get; set; } = false;
         public bool EnableAlerts { get; set; } = false;
     }
 
     public partial class HighVolumeDeltaBubbles
     {
+        private static string _lastLoadedSymbol;
+
         private static string StorageFolder
         {
             get
@@ -115,6 +117,7 @@ namespace VolumeDeltaBubbles
             try
             {
                 string activeSymbol = GetActiveSymbolName();
+                _lastLoadedSymbol = activeSymbol;
 
                 var profile = new SymbolSettingsProfile
                 {
@@ -177,6 +180,14 @@ namespace VolumeDeltaBubbles
             try
             {
                 string activeSymbol = GetActiveSymbolName();
+
+                // If auto-loading (no UI feedback) and we already loaded settings for this symbol, skip to avoid overwriting user edits
+                if (!showUiFeedback && _lastLoadedSymbol == activeSymbol)
+                {
+                    return false;
+                }
+
+                _lastLoadedSymbol = activeSymbol;
                 string path = GetSettingsFilePath();
 
                 if (!File.Exists(path))
@@ -209,7 +220,6 @@ namespace VolumeDeltaBubbles
                     this.MaxZoneHeight != profile.MaxZoneHeight ||
                     Math.Abs(this.DeltaFilter - profile.DeltaFilter) > 0.0001 ||
                     Math.Abs(this.BasisRatioFilter - profile.BasisRatioFilter) > 0.0001;
-
                 this.LookbackMinutes     = profile.LookbackMinutes;
                 this.TotalVolume         = profile.TotalVolume;
                 this.MinTradeVolume      = profile.MinTradeVolume;
@@ -225,8 +235,10 @@ namespace VolumeDeltaBubbles
                 this.MinBubbleSize       = profile.MinBubbleSize;
                 this.MaxBubbleSize       = profile.MaxBubbleSize;
                 this.Opacity             = profile.Opacity;
-                this.BuyColor            = Color.FromArgb(profile.BuyColorArgb);
-                this.SellColor           = Color.FromArgb(profile.SellColorArgb);
+                if (profile.BuyColorArgb != 0)
+                    this.BuyColor        = Color.FromArgb(profile.BuyColorArgb);
+                if (profile.SellColorArgb != 0)
+                    this.SellColor       = Color.FromArgb(profile.SellColorArgb);
                 this.ShowLabels          = profile.ShowLabels;
                 this.EnableAlerts        = profile.EnableAlerts;
 
@@ -268,6 +280,7 @@ namespace VolumeDeltaBubbles
         {
             try
             {
+                _lastLoadedSymbol = null;
                 string activeSymbol = GetActiveSymbolName();
                 string path = GetSettingsFilePath();
                 if (File.Exists(path))
@@ -336,11 +349,29 @@ namespace VolumeDeltaBubbles
                     BasisRatioFilter    = this.BasisRatioFilter,
                 };
 
+                DateTime fromTime;
+                if (this.LookbackMinutes > 0)
+                {
+                    fromTime = Core.Instance.TimeUtils.DateTimeUtcNow.AddMinutes(-this.LookbackMinutes);
+                }
+                else
+                {
+                    fromTime = Core.Instance.TimeUtils.DateTimeUtcNow.AddDays(-7);
+                    if (this.HistoricalData != null && this.Count > 0)
+                    {
+                        try
+                        {
+                            fromTime = this.HistoricalData[0, SeekOriginHistory.Begin].TimeLeft;
+                        }
+                        catch { }
+                    }
+                }
+
                 _powerTradesData = this.Symbol.GetHistory(new HistoryRequestParameters
                 {
                     Symbol      = this.Symbol,
                     Aggregation = new HistoryAggregationPowerTrades(ptParams),
-                    FromTime    = Core.Instance.TimeUtils.DateTimeUtcNow.AddMinutes(-this.LookbackMinutes),
+                    FromTime    = fromTime,
                     ToTime      = default,
                 });
 

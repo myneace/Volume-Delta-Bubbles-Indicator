@@ -73,18 +73,36 @@ namespace VolumeDeltaBubbles
                 BasisRatioFilter    = this.BasisRatioFilter,
             };
 
+            DateTime fromTime;
+            if (this.LookbackMinutes > 0)
+            {
+                fromTime = Core.Instance.TimeUtils.DateTimeUtcNow.AddMinutes(-this.LookbackMinutes);
+            }
+            else
+            {
+                fromTime = Core.Instance.TimeUtils.DateTimeUtcNow.AddDays(-7);
+                if (this.HistoricalData != null && this.Count > 0)
+                {
+                    try
+                    {
+                        fromTime = this.HistoricalData[0, SeekOriginHistory.Begin].TimeLeft;
+                    }
+                    catch { }
+                }
+            }
+
             _powerTradesData = this.Symbol.GetHistory(new HistoryRequestParameters
             {
                 Symbol      = this.Symbol,
                 Aggregation = new HistoryAggregationPowerTrades(ptParams),
-                FromTime    = Core.Instance.TimeUtils.DateTimeUtcNow.AddMinutes(-this.LookbackMinutes),
+                FromTime    = fromTime,
                 ToTime      = default,          // open-ended → streams real-time
             });
 
             _powerTradesData.NewHistoryItem += OnPowerTradesZoneFormed;
 
             Core.Instance.Loggers.Log(
-                $"[PTBubbles] Subscribed — lookback={this.LookbackMinutes} min, " +
+                $"[PTBubbles] Subscribed — lookback={this.LookbackMinutes} min (start={fromTime}), " +
                 $"totalVol={this.TotalVolume}, deltaFilter={this.DeltaFilter}");
         }
 

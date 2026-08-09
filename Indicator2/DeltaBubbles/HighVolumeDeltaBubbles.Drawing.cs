@@ -41,11 +41,10 @@ namespace VolumeDeltaBubbles
                             statusFont, args.Rectangle.Left + 8, args.Rectangle.Top + 8);
                         return;
                     }
-
                     if (_powerTradesData.Count == 0)
                     {
                         DrawShadowedString(gr,
-                            "Power Trades Bubbles: no zones in lookback window " +
+                            "Power Trades Bubbles: no zones found " +
                             "(check feed supports tick data and PT settings)",
                             statusFont, args.Rectangle.Left + 8, args.Rectangle.Top + 8);
                         return;

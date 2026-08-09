@@ -65,10 +65,10 @@ namespace VolumeDeltaBubbles
         public bool AutoLoadSymbolSettings = true;
 
         // ── Power Trades history window ────────────────────────────────────────
-        // How many minutes of tick history to load on startup.  A wider window
-        // shows more historical zones but takes longer on first load.
-        [InputParameter("Lookback window (minutes)", 5, 1, 1440, 1, 0)]
-        public int LookbackMinutes = 30;
+        // How many minutes of tick history to load on startup.
+        // Set to 0 to load all available chart history.
+        [InputParameter("Lookback window (minutes)", 5, 0, 999999, 1, 0)]
+        public int LookbackMinutes = 900;
 
         // ── Power Trades zone filters ──────────────────────────────────────────
         // These mirror the parameters in Quantower's own Power Trades panel.
@@ -145,10 +145,10 @@ namespace VolumeDeltaBubbles
         public int Opacity = 75;
 
         [InputParameter("Buy-dominant color", 70)]
-        public Color BuyColor = Color.FromArgb(255, 0, 191, 99);
+        public Color BuyColor = Color.FromArgb(255, 0, 245, 245);
 
         [InputParameter("Sell-dominant color", 80)]
-        public Color SellColor = Color.FromArgb(255, 226, 65, 82);
+        public Color SellColor = Color.FromArgb(255, 245, 0, 245);
 
         [InputParameter("Show volume labels", 90)]
         public bool ShowLabels = false;
