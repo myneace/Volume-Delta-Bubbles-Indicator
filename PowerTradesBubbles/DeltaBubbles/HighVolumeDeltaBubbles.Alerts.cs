@@ -10,7 +10,35 @@ namespace VolumeDeltaBubbles
 {
     public partial class HighVolumeDeltaBubbles
     {
-        // ── Audio helpers ─────────────────────────────────────────────────────
+        // ── Quantower Native Alerts ──────────────────────────────────────────
+
+        /// <summary>
+        /// Emits a native Quantower alert event when a positive bubble is created
+        /// or a negative bubble is triggered in real-time.
+        /// </summary>
+        private void TriggerBubbleAlert(DateTime time, double midPrice, bool isBuyDominant, double cumulativeVolume, double deltaPercent)
+        {
+            try
+            {
+                string directionStr = isBuyDominant ? "Positive" : "Negative";
+                string eventTypeStr = isBuyDominant ? "Created" : "Triggered";
+                string symName = GetActiveSymbolName();
+                string title = $"{this.Name}: {directionStr} Bubble {eventTypeStr}";
+                
+                string message = $"[{this.Name}] {directionStr} bubble {eventTypeStr.ToLowerInvariant()} | " +
+                                 $"Symbol: {symName} | Price: {midPrice:F2} | " +
+                                 $"Vol: {FormatVolume(cumulativeVolume)} | " +
+                                 $"Δ: {deltaPercent:+0.0;-0.0;0.0}% | Time: {time:HH:mm:ss}";
+
+                Core.Instance.Loggers.Log($"[PTBubbles] Native Alert — {title} — {message}");
+
+                Core.Instance.Alert(message, title, symName);
+            }
+            catch (Exception ex)
+            {
+                Core.Instance.Loggers.Log($"[PTBubbles] Error triggering native alert: {ex.Message}");
+            }
+        }
 
         // Lock and tracking references for currently playing audio to ensure
         // only one sound plays at a time (cutting off any previous sound).

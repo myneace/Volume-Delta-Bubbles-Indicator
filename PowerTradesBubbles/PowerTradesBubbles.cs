@@ -56,6 +56,12 @@ namespace VolumeDeltaBubbles
         Logarithmic
     }
 
+    public enum TelegramScreenshotMode
+    {
+        DirectChartRenderer,
+        ScreenAreaCapture
+    }
+
     public partial class HighVolumeDeltaBubbles : Indicator
     {
         #region Input parameters
@@ -156,6 +162,9 @@ namespace VolumeDeltaBubbles
         [InputParameter("Enable sound alerts", 95)]
         public bool EnableAlerts = true;
 
+        [InputParameter("Enable Bubble Alerts", 96)]
+        public bool EnableBubbleAlerts = false;
+
         #endregion Input parameters
 
         #region Custom Settings UI Override
@@ -183,6 +192,12 @@ namespace VolumeDeltaBubbles
                     this.DeleteSymbolSettings(true);
                     return null;
                 }, 202));
+
+                settings.Add(new SettingItemAction("Test Telegram Screenshot", (args) =>
+                {
+                    this.SendTelegramBubbleAlertAsync("Test", "Manual Trigger", 0, 0, 0, Core.Instance.TimeUtils.DateTimeUtcNow);
+                    return null;
+                }, 203));
 
                 return settings;
             }

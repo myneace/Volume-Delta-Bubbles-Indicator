@@ -161,15 +161,30 @@ namespace VolumeDeltaBubbles
                         // array — never a partially-updated state.
                         AppendZoneToSnapshot(raw.TimeLeft, zoneMidPrice, pt.DeltaPercent, pt.Cumulative);
 
-                        // ── 2. Sound alert — fires exactly once per zone ───────
-                        if (this.EnableAlerts)
+                        // ── 2. Alerts (Native Quantower + Sound) ───────────────
+                        var key = (raw.TimeLeft.Ticks, zoneMidPrice, isBuyDominant);
+                        if (_alertedBubbles.Add(key))
                         {
-                            var key = (raw.TimeLeft.Ticks, zoneMidPrice, isBuyDominant);
-                            if (_alertedBubbles.Add(key))
+                            // ── Native Quantower alert event ───────────────────
+                            if (this.EnableBubbleAlerts)
+                            {
+                                TriggerBubbleAlert(raw.TimeLeft, zoneMidPrice, isBuyDominant, pt.Cumulative, pt.DeltaPercent);
+                            }
+
+                            // ── Telegram screenshot alert ──────────────────────
+                            if (this.EnableTelegramScreenshot)
+                            {
+                                string directionStr = isBuyDominant ? "Positive" : "Negative";
+                                string eventTypeStr = isBuyDominant ? "Created" : "Triggered";
+                                SendTelegramBubbleAlertAsync(directionStr, eventTypeStr, zoneMidPrice, pt.Cumulative, pt.DeltaPercent, raw.TimeLeft);
+                            }
+
+                            // ── Sound alert ────────────────────────────────────
+                            if (this.EnableAlerts)
                             {
                                 string sf = isBuyDominant ? _soundBuy : _soundSell;
                                 Core.Instance.Loggers.Log(
-                                    $"[PTBubbles] Alert — {(isBuyDominant ? "BUY" : "SELL")} " +
+                                    $"[PTBubbles] Sound Alert — {(isBuyDominant ? "BUY" : "SELL")} " +
                                     $"price={zoneMidPrice:F5}  cumVol={pt.Cumulative:F0}  file={sf}");
                                 PlaySoundAsync(sf);
                             }

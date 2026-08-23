@@ -36,6 +36,12 @@ namespace VolumeDeltaBubbles
         public int SellColorArgb { get; set; } = Color.FromArgb(255, 245, 0, 245).ToArgb();
         public bool ShowLabels { get; set; } = false;
         public bool EnableAlerts { get; set; } = false;
+        public bool EnableBubbleAlerts { get; set; } = false;
+        public bool EnableTelegramScreenshot { get; set; } = false;
+        public TelegramScreenshotMode ScreenshotMode { get; set; } = TelegramScreenshotMode.DirectChartRenderer;
+        public string TelegramBotToken { get; set; } = string.Empty;
+        public string TelegramChatId { get; set; } = string.Empty;
+        public int TelegramCooldownSeconds { get; set; } = 5;
     }
 
     public partial class HighVolumeDeltaBubbles
@@ -140,8 +146,14 @@ namespace VolumeDeltaBubbles
                     Opacity              = this.Opacity,
                     BuyColorArgb         = this.BuyColor.ToArgb(),
                     SellColorArgb        = this.SellColor.ToArgb(),
-                    ShowLabels           = this.ShowLabels,
-                    EnableAlerts         = this.EnableAlerts,
+                    ShowLabels               = this.ShowLabels,
+                    EnableAlerts             = this.EnableAlerts,
+                    EnableBubbleAlerts       = this.EnableBubbleAlerts,
+                    EnableTelegramScreenshot = this.EnableTelegramScreenshot,
+                    ScreenshotMode           = this.ScreenshotMode,
+                    TelegramBotToken         = this.TelegramBotToken,
+                    TelegramChatId           = this.TelegramChatId,
+                    TelegramCooldownSeconds  = this.TelegramCooldownSeconds,
                 };
 
                 string path = GetSettingsFilePath();
@@ -239,8 +251,17 @@ namespace VolumeDeltaBubbles
                     this.BuyColor        = Color.FromArgb(profile.BuyColorArgb);
                 if (profile.SellColorArgb != 0)
                     this.SellColor       = Color.FromArgb(profile.SellColorArgb);
-                this.ShowLabels          = profile.ShowLabels;
-                this.EnableAlerts        = profile.EnableAlerts;
+                this.ShowLabels               = profile.ShowLabels;
+                this.EnableAlerts             = profile.EnableAlerts;
+                this.EnableBubbleAlerts       = profile.EnableBubbleAlerts;
+                this.EnableTelegramScreenshot = profile.EnableTelegramScreenshot;
+                this.ScreenshotMode           = profile.ScreenshotMode;
+                if (!string.IsNullOrEmpty(profile.TelegramBotToken))
+                    this.TelegramBotToken     = profile.TelegramBotToken;
+                if (!string.IsNullOrEmpty(profile.TelegramChatId))
+                    this.TelegramChatId       = profile.TelegramChatId;
+                if (profile.TelegramCooldownSeconds >= 0)
+                    this.TelegramCooldownSeconds = profile.TelegramCooldownSeconds;
 
                 // Re-subscribe to Power Trades data feed if aggregate filter settings changed
                 if (ptFiltersChanged && _powerTradesData != null)
