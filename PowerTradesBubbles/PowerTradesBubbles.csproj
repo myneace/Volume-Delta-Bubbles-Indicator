@@ -7,17 +7,17 @@
     <AppendTargetFrameworkToOutputPath>false</AppendTargetFrameworkToOutputPath>
     <Platforms>AnyCPU</Platforms>
     <AlgoType>Indicator</AlgoType>
-    <AssemblyName>Indicator2</AssemblyName>
-    <RootNamespace>Indicator2</RootNamespace>
+    <AssemblyName>PowerTradesBubbles</AssemblyName>
+    <RootNamespace>PowerTradesBubbles</RootNamespace>
     <!-- Copy NuGet package DLLs (e.g. NAudio) to the output folder so
          Quantower can find them when loading the indicator. -->
     <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <OutputPath>C:\Quantower\TradingPlatform\v1.146.18\..\..\Settings\Scripts\Indicators\Indicator2</OutputPath>
+    <OutputPath>C:\Quantower\TradingPlatform\v1.146.18\..\..\Settings\Scripts\Indicators\PowerTradesBubbles</OutputPath>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
-    <OutputPath>C:\Quantower\TradingPlatform\v1.146.18\..\..\Settings\Scripts\Indicators\Indicator2</OutputPath>
+    <OutputPath>C:\Quantower\TradingPlatform\v1.146.18\..\..\Settings\Scripts\Indicators\PowerTradesBubbles</OutputPath>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="TradingPlatform.BusinessLayer">
