@@ -1,27 +1,12 @@
 using System;
-using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
-using System.IO;
 using TradingPlatform.BusinessLayer;
-using TradingPlatform.BusinessLayer.PowerTrades;
 
 namespace VolumeDeltaBubbles
 {
     public partial class HighVolumeDeltaBubbles
     {
-        // Lightweight record used while ranking Power Trades zones within the
-        // visible chart window before drawing.
-        private struct LevelCandidate
-        {
-            public double Price;           // zone mid-price  ((High + Low) / 2)
-            public double Delta;           // signed DeltaPercent  (+ = buy dom.)
-            public double AbsDelta;        // sizing metric: Cumulative × |Δ%| / 100
-            public double CumulativeVol;   // raw cumulative zone volume (for labels)
-            public double ChartX;
-            public long   BarTimeTicks;    // zone TimeLeft.Ticks — used as alert key
-        }
-
         public override void OnPaintChart(PaintChartEventArgs args)
         {
             try
@@ -32,23 +17,24 @@ namespace VolumeDeltaBubbles
                 Graphics gr = args.Graphics;
 
                 // ---- Power Trades data readiness check ----
-                using (Font statusFont = new Font("Segoe UI", 9, FontStyle.Italic))
+                Font statusFont = _statusFont ?? new Font("Segoe UI", 9, FontStyle.Italic);
+                if (_powerTradesData == null)
                 {
-                    if (_powerTradesData == null)
-                    {
-                        DrawShadowedString(gr,
-                            "Power Trades Bubbles: initializing…",
-                            statusFont, args.Rectangle.Left + 8, args.Rectangle.Top + 8);
-                        return;
-                    }
-                    if (_powerTradesData.Count == 0)
-                    {
-                        DrawShadowedString(gr,
-                            "Power Trades Bubbles: no zones found " +
-                            "(check feed supports tick data and PT settings)",
-                            statusFont, args.Rectangle.Left + 8, args.Rectangle.Top + 8);
-                        return;
-                    }
+                    DrawShadowedString(gr,
+                        "Power Trades Bubbles: initializing…",
+                        statusFont, args.Rectangle.Left + 8, args.Rectangle.Top + 8);
+                    return;
+                }
+
+                // Read snapshot array atomically via volatile load (zero SDK interop calls during paint)
+                var snapshot = _ptZoneSnapshot;
+                if (snapshot.Length == 0)
+                {
+                    DrawShadowedString(gr,
+                        "Power Trades Bubbles: no zones found " +
+                        "(check feed supports tick data and PT settings)",
+                        statusFont, args.Rectangle.Left + 8, args.Rectangle.Top + 8);
+                    return;
                 }
 
                 var converter  = this.CurrentChart.MainWindow.CoordinatesConverter;
@@ -62,9 +48,6 @@ namespace VolumeDeltaBubbles
                 gr.SmoothingMode = SmoothingMode.AntiAlias;
 
                 // ---- Determine visible time window from the chart's bar history ----
-                // We still use the chart's own HistoricalData only to find the
-                // wall-clock time of the leftmost and rightmost visible bars so we
-                // can clip Power Trades zones to the visible area.
                 DateTime leftTime, rightTime;
                 try
                 {
@@ -73,74 +56,55 @@ namespace VolumeDeltaBubbles
                 }
                 catch { return; }
 
-                // Add a small buffer on the right so a zone that is still forming
-                // on the live bar is included.
-                rightTime = rightTime.AddSeconds(this.TimeInterval + 5);
+                // Include forming live bar up to the present
+                rightTime = Core.Instance.TimeUtils.DateTimeUtcNow.AddSeconds(10);
 
-                // ---- Pass 1: collect every PT zone whose formation time falls
-                //              within the visible chart window ----
-                var candidates = new List<LevelCandidate>();
-
-                for (int i = 0; i < _powerTradesData.Count; i++)
-                {
-                    IHistoryItem item;
-                    try { item = _powerTradesData[i, SeekOriginHistory.Begin]; }
-                    catch { continue; }
-
-                    if (item.TimeLeft < leftTime || item.TimeLeft > rightTime)
-                        continue;
-
-                    if (!(item is IPowerTradesHistoryItem pt))
-                        continue;
-
-                    double absDeltaPct = Math.Abs(pt.DeltaPercent);
-
-                    // Calculate sizing metric based on selected user preference.
-                    // CumulativeVolume (default) scales directly by zone contract volume so BIG trades are immediately obvious.
-                    double sizingMetric = (this.SizingMetric == BubbleSizingMetric.CumulativeVolume)
-                        ? pt.Cumulative
-                        : (pt.Cumulative * absDeltaPct / 100.0);
-
-                    if (sizingMetric <= 0)
-                        continue;
-
-                    // Y = zone mid-price (MaxPrice and MinPrice are the zone's price bounds)
-                    double zoneMidPrice = (pt.MaxPrice + pt.MinPrice) / 2.0;
-
-                    // X = zone formation time, offset by half a bar-width to centre
-                    // the bubble on the bar the zone formed in (matches old behaviour).
-                    double chartX = converter.GetChartX(item.TimeLeft) + barWidthPx / 2.0;
-
-                    candidates.Add(new LevelCandidate
-                    {
-                        Price         = zoneMidPrice,
-                        Delta         = pt.DeltaPercent,    // signed
-                        AbsDelta      = sizingMetric,
-                        CumulativeVol = pt.Cumulative,
-                        ChartX        = chartX,
-                        BarTimeTicks  = item.TimeLeft.Ticks,
-                    });
-                }
-
-                if (candidates.Count == 0)
-                    return;
-
-                // ---- Pass 2: size relative to the biggest zone visible, then draw ----
+                // ---- Pass 1: Find maximum sizing metric among visible zones (Zero allocations) ----
                 double maxAbsDeltaVisible = 0;
-                foreach (var c in candidates)
-                    if (c.AbsDelta > maxAbsDeltaVisible)
-                        maxAbsDeltaVisible = c.AbsDelta;
+                bool isCumulativeMetric = (this.SizingMetric == BubbleSizingMetric.CumulativeVolume);
+
+                for (int i = 0; i < snapshot.Length; i++)
+                {
+                    ref readonly var zone = ref snapshot[i];
+
+                    if (zone.Time < leftTime || zone.Time > rightTime)
+                        continue;
+
+                    double absDeltaPct = Math.Abs(zone.DeltaPercent);
+                    double metric = isCumulativeMetric
+                        ? zone.Cumulative
+                        : (zone.Cumulative * absDeltaPct / 100.0);
+
+                    if (metric > maxAbsDeltaVisible)
+                        maxAbsDeltaVisible = metric;
+                }
 
                 if (maxAbsDeltaVisible <= 0)
                     return;
 
                 double sizeRange = Math.Max(0, this.MaxBubbleSize - this.MinBubbleSize);
+                Font labelFont = _labelFont ?? new Font("Segoe UI", 8, FontStyle.Bold);
 
-                using (Font labelFont = new Font("Segoe UI", 8, FontStyle.Bold))
+                // ---- Pass 2: Draw visible bubbles reusing GDI Brush & Pen (Eliminates GDI churn) ----
+                using (var fillBrush = new SolidBrush(Color.Empty))
+                using (var borderPen = new Pen(Color.Empty, 1f))
                 {
-                    foreach (var c in candidates)
+                    for (int i = 0; i < snapshot.Length; i++)
                     {
-                        double ratio = Math.Max(0, Math.Min(1, c.AbsDelta / maxAbsDeltaVisible));
+                        ref readonly var zone = ref snapshot[i];
+
+                        if (zone.Time < leftTime || zone.Time > rightTime)
+                            continue;
+
+                        double absDeltaPct = Math.Abs(zone.DeltaPercent);
+                        double metric = isCumulativeMetric
+                            ? zone.Cumulative
+                            : (zone.Cumulative * absDeltaPct / 100.0);
+
+                        if (metric <= 0)
+                            continue;
+
+                        double ratio = Math.Max(0, Math.Min(1, metric / maxAbsDeltaVisible));
                         double t;
 
                         switch (this.ScalingMethod)
@@ -159,48 +123,35 @@ namespace VolumeDeltaBubbles
 
                         double diameter = this.MinBubbleSize + t * sizeRange;
 
-                        double y = converter.GetChartY(c.Price);
+                        double y = converter.GetChartY(zone.MidPrice);
                         if (y + diameter < args.Rectangle.Top || y - diameter > args.Rectangle.Bottom)
                             continue;
 
-                        bool  isBuyDominant = c.Delta >= 0;
+                        double chartX = converter.GetChartX(zone.Time) + barWidthPx / 2.0;
+
+                        bool  isBuyDominant = zone.DeltaPercent >= 0;
                         Color baseColor     = isBuyDominant ? this.BuyColor : this.SellColor;
                         int   alpha = (int)Math.Round(255 * (this.Opacity / 100.0) * (0.35 + 0.65 * t));
                         alpha = Math.Max(0, Math.Min(255, alpha));
 
-                        float rx = (float)(c.ChartX - diameter / 2);
-                        float ry = (float)(y  - diameter / 2);
+                        float rx = (float)(chartX - diameter / 2);
+                        float ry = (float)(y - diameter / 2);
                         float d  = (float)diameter;
 
-                        using (var fillBrush = new SolidBrush(Color.FromArgb(alpha, baseColor)))
-                        using (var borderPen = new Pen(Color.FromArgb(Math.Min(255, alpha + 60), baseColor), 1f))
-                        {
-                            gr.FillEllipse(fillBrush, rx, ry, d, d);
-                            gr.DrawEllipse(borderPen, rx, ry, d, d);
-                        }
+                        // Mutate brush and pen colors without recreating GDI object handles
+                        fillBrush.Color = Color.FromArgb(alpha, baseColor);
+                        borderPen.Color = Color.FromArgb(Math.Min(255, alpha + 60), baseColor);
 
-                        // ---- Sound alert on NEW zones only ----
-                        if (this.EnableAlerts)
-                        {
-                            var key = (c.BarTimeTicks, c.Price, isBuyDominant);
-                            if (_alertedBubbles.Add(key))   // returns true only the first time
-                            {
-                                string sf = isBuyDominant ? _soundBuy : _soundSell;
-                                Core.Instance.Loggers.Log(
-                                    $"[PTBubbles] Alert — {(isBuyDominant ? "BUY" : "SELL")} " +
-                                    $"price={c.Price:F5}  cumVol={c.CumulativeVol:F0}  " +
-                                    $"file={sf}  exists={File.Exists(sf)}");
-                                PlaySoundAsync(sf);
-                            }
-                        }
+                        gr.FillEllipse(fillBrush, rx, ry, d, d);
+                        gr.DrawEllipse(borderPen, rx, ry, d, d);
 
-                        // Show the raw cumulative zone volume as the label text.
+                        // Labels
                         if (this.ShowLabels && diameter >= this.MinBubbleSize + 4)
                         {
-                            string text = (isBuyDominant ? "+" : "-") + FormatVolume(c.CumulativeVol);
+                            string text = (isBuyDominant ? "+" : "-") + FormatVolume(zone.Cumulative);
                             SizeF textSize = gr.MeasureString(text, labelFont);
                             DrawShadowedString(gr, text, labelFont,
-                                (float)(c.ChartX - textSize.Width / 2), ry - textSize.Height - 2);
+                                (float)(chartX - textSize.Width / 2), ry - textSize.Height - 2);
                         }
                     }
                 }

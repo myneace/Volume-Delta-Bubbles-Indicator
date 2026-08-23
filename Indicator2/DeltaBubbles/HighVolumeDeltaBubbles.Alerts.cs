@@ -90,37 +90,28 @@ namespace VolumeDeltaBubbles
 
             ThreadPool.QueueUserWorkItem(_ =>
             {
-                WaveOutEvent outputDevice = null;
-                AudioFileReader audioFile  = null;
                 try
                 {
-                    audioFile    = new AudioFileReader(filePath);   // handles MP3 + WAV
-                    outputDevice = new WaveOutEvent();              // uses default audio device
+                    var audioFile    = new AudioFileReader(filePath);   // handles MP3 + WAV
+                    var outputDevice = new WaveOutEvent();              // uses default audio device
+
+                    outputDevice.PlaybackStopped += (s, a) =>
+                    {
+                        try
+                        {
+                            outputDevice.Dispose();
+                            audioFile.Dispose();
+                        }
+                        catch { }
+                    };
+
                     outputDevice.Init(audioFile);
                     outputDevice.Play();
-
-                    // Block this thread-pool thread until playback finishes
-                    // (or 30 s safety timeout), then clean up.
-                    DateTime deadline = DateTime.UtcNow.AddSeconds(30);
-                    while (outputDevice.PlaybackState == PlaybackState.Playing
-                           && DateTime.UtcNow < deadline)
-                    {
-                        Thread.Sleep(100);
-                    }
-
-                    Core.Instance.Loggers.Log(
-                        $"[VolΔBubbles] NAudio playback done  file='{filePath}'");
                 }
                 catch (Exception ex)
                 {
                     Core.Instance.Loggers.Log(
                         $"[VolΔBubbles] NAudio exception: {ex.Message}");
-                }
-                finally
-                {
-                    outputDevice?.Stop();
-                    outputDevice?.Dispose();
-                    audioFile?.Dispose();
                 }
             });
         }

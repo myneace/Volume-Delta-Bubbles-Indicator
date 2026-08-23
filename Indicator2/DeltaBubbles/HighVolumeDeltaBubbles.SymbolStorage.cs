@@ -376,7 +376,13 @@ namespace VolumeDeltaBubbles
                 });
 
                 _powerTradesData.NewHistoryItem += OnPowerTradesZoneFormed;
+
+                // Rebuild the in-memory paint snapshot and seed alert keys from
+                // the newly loaded history buffer.
+                RebuildFromBuffer();
+
                 Core.Instance.Loggers.Log($"[PTBubbles] Re-subscribed Power Trades feed with updated filters.");
+
             }
             catch (Exception ex)
             {
