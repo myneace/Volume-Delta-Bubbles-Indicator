@@ -154,7 +154,7 @@ namespace VolumeDeltaBubbles
         public bool ShowLabels = false;
 
         [InputParameter("Enable sound alerts", 95)]
-        public bool EnableAlerts = false;
+        public bool EnableAlerts = true;
 
         #endregion Input parameters
 

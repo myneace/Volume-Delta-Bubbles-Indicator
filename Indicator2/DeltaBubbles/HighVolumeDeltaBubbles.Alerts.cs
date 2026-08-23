@@ -12,6 +12,12 @@ namespace VolumeDeltaBubbles
     {
         // ── Audio helpers ─────────────────────────────────────────────────────
 
+        // Lock and tracking references for currently playing audio to ensure
+        // only one sound plays at a time (cutting off any previous sound).
+        private static readonly object _soundLock = new object();
+        private static WaveOutEvent _currentOutputDevice;
+        private static AudioFileReader _currentAudioFile;
+
         /// <summary>
         /// Searches for <paramref name="filename"/> inside a "sound" subfolder
         /// by walking up from several anchor directories (AppDomain base,
@@ -74,10 +80,9 @@ namespace VolumeDeltaBubbles
 
         /// <summary>
         /// Plays an MP3 or WAV file asynchronously using NAudio.
-        /// NAudio contains its own pure-managed MP3 decoder — it does NOT call
-        /// into Windows MCI, DirectShow, or any registered codec driver, so it
-        /// works reliably even inside host processes (like Quantower) where the
-        /// Windows MCI subsystem cannot load its MP3 driver (error 266).
+        /// If a previous sound is currently playing (e.g. A buy alert followed
+        /// immediately by a sell alert), it cuts off the previous sound immediately
+        /// so the new sound plays cleanly without overlap.
         /// </summary>
         private static void PlaySoundAsync(string filePath)
         {
@@ -90,28 +95,63 @@ namespace VolumeDeltaBubbles
 
             ThreadPool.QueueUserWorkItem(_ =>
             {
-                try
+                lock (_soundLock)
                 {
-                    var audioFile    = new AudioFileReader(filePath);   // handles MP3 + WAV
-                    var outputDevice = new WaveOutEvent();              // uses default audio device
-
-                    outputDevice.PlaybackStopped += (s, a) =>
+                    try
                     {
-                        try
+                        // ── Cut off and dispose any currently active sound ───
+                        if (_currentOutputDevice != null)
                         {
-                            outputDevice.Dispose();
-                            audioFile.Dispose();
+                            try
+                            {
+                                _currentOutputDevice.Stop();
+                                _currentOutputDevice.Dispose();
+                            }
+                            catch { }
+                            _currentOutputDevice = null;
                         }
-                        catch { }
-                    };
 
-                    outputDevice.Init(audioFile);
-                    outputDevice.Play();
-                }
-                catch (Exception ex)
-                {
-                    Core.Instance.Loggers.Log(
-                        $"[VolΔBubbles] NAudio exception: {ex.Message}");
+                        if (_currentAudioFile != null)
+                        {
+                            try { _currentAudioFile.Dispose(); }
+                            catch { }
+                            _currentAudioFile = null;
+                        }
+
+                        // ── Start playback for the new sound ─────────────────
+                        var audioFile    = new AudioFileReader(filePath);   // handles MP3 + WAV
+                        var outputDevice = new WaveOutEvent();              // uses default audio device
+
+                        _currentAudioFile    = audioFile;
+                        _currentOutputDevice = outputDevice;
+
+                        outputDevice.PlaybackStopped += (s, a) =>
+                        {
+                            lock (_soundLock)
+                            {
+                                try
+                                {
+                                    // Only clean up if this device is still the active one
+                                    if (_currentOutputDevice == outputDevice)
+                                    {
+                                        _currentOutputDevice.Dispose();
+                                        _currentOutputDevice = null;
+                                        _currentAudioFile?.Dispose();
+                                        _currentAudioFile = null;
+                                    }
+                                }
+                                catch { }
+                            }
+                        };
+
+                        outputDevice.Init(audioFile);
+                        outputDevice.Play();
+                    }
+                    catch (Exception ex)
+                    {
+                        Core.Instance.Loggers.Log(
+                            $"[VolΔBubbles] NAudio exception: {ex.Message}");
+                    }
                 }
             });
         }
