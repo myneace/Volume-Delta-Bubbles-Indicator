@@ -86,6 +86,26 @@ namespace VolumeDeltaBubbles
             _labelFont  = new Font("Segoe UI", 8, FontStyle.Bold);
             _statusFont = new Font("Segoe UI", 9, FontStyle.Italic);
 
+            // Initialize zone cache & attempt warm start
+            _zoneCache = new PtZoneCache();
+            if (this.EnablePersistence)
+            {
+                string cachePath = GetZoneCacheFilePath();
+                string filterFp = GetFilterFingerprint();
+                if (_zoneCache.Load(cachePath, filterFp, this.MaxCachedDays) && _zoneCache.Count > 0)
+                {
+                    // Instant paint ready before SDK connection!
+                    _ptZoneSnapshot = _zoneCache.GetSnapshot();
+
+                    // Seed alert tracking so historical zones don't fire sound/alerts
+                    foreach (var z in _ptZoneSnapshot)
+                        _alertedBubbles.Add((z.Time.Ticks, z.MidPrice, z.DeltaPercent >= 0));
+
+                    Core.Instance.Loggers.Log(
+                        $"[PTBubbles] Warm start: loaded {_zoneCache.Count} cached zones from '{cachePath}'. Instant paint active.");
+                }
+            }
+
             var ptParams = new HistoryAggregationPowerTradesParameters
             {
                 TotalVolume         = this.TotalVolume,
@@ -114,11 +134,26 @@ namespace VolumeDeltaBubbles
                 }
             }
 
+            // Incremental index optimization:
+            // If we already have cached zones, query history from (latestCachedTime - 15min)
+            // to drastically shorten broker tick-history download and aggregation time.
+            DateTime requestFromTime = fromTime;
+            if (this.EnablePersistence && _zoneCache != null && _zoneCache.LatestTime.HasValue)
+            {
+                DateTime overlapStart = _zoneCache.LatestTime.Value.AddMinutes(-15);
+                if (overlapStart > fromTime)
+                {
+                    requestFromTime = overlapStart;
+                    Core.Instance.Loggers.Log(
+                        $"[PTBubbles] Incremental query: requesting history from {requestFromTime:u} (latest cached={_zoneCache.LatestTime.Value:u}) instead of {fromTime:u}.");
+                }
+            }
+
             _powerTradesData = this.Symbol.GetHistory(new HistoryRequestParameters
             {
                 Symbol      = this.Symbol,
                 Aggregation = new HistoryAggregationPowerTrades(ptParams),
-                FromTime    = fromTime,
+                FromTime    = requestFromTime,
                 ToTime      = default,   // open-ended → real-time streaming
             });
 
@@ -131,7 +166,7 @@ namespace VolumeDeltaBubbles
             RebuildFromBuffer();
 
             Core.Instance.Loggers.Log(
-                $"[PTBubbles] Subscribed — lookback={this.LookbackMinutes} min (start={fromTime}), " +
+                $"[PTBubbles] Subscribed — lookback={this.LookbackMinutes} min (queryStart={requestFromTime:u}), " +
                 $"totalVol={this.TotalVolume}, deltaFilter={this.DeltaFilter}");
         }
 
@@ -160,6 +195,17 @@ namespace VolumeDeltaBubbles
                         // it always sees either the old or the fully-written new
                         // array — never a partially-updated state.
                         AppendZoneToSnapshot(raw.TimeLeft, zoneMidPrice, pt.DeltaPercent, pt.Cumulative);
+
+                        if (this.EnablePersistence && _zoneCache != null)
+                        {
+                            _zoneCache.Add(new PtZoneData
+                            {
+                                Time         = raw.TimeLeft,
+                                MidPrice     = zoneMidPrice,
+                                DeltaPercent = pt.DeltaPercent,
+                                Cumulative   = pt.Cumulative,
+                            });
+                        }
 
                         // ── 2. Alerts (Native Quantower + Sound) ───────────────
                         var key = (raw.TimeLeft.Ticks, zoneMidPrice, isBuyDominant);
@@ -234,14 +280,17 @@ namespace VolumeDeltaBubbles
         {
             if (_powerTradesData == null)
             {
-                _ptZoneSnapshot = Array.Empty<PtZoneData>();
-                _alertedBubbles.Clear();
+                if (!this.EnablePersistence || _zoneCache == null || _zoneCache.Count == 0)
+                {
+                    _ptZoneSnapshot = Array.Empty<PtZoneData>();
+                    _alertedBubbles.Clear();
+                }
                 return;
             }
 
             int count = _powerTradesData.Count;
-            var zones     = new List<PtZoneData>(count);
-            var alertKeys = new HashSet<(long, double, bool)>(count);
+            var incomingZones = new List<PtZoneData>(count);
+            var alertKeys     = new HashSet<(long, double, bool)>(count);
 
             for (int i = 0; i < count; i++)
             {
@@ -254,7 +303,7 @@ namespace VolumeDeltaBubbles
                         bool   isBuy = pt.DeltaPercent >= 0;
 
                         alertKeys.Add((item.TimeLeft.Ticks, mid, isBuy));
-                        zones.Add(new PtZoneData
+                        incomingZones.Add(new PtZoneData
                         {
                             Time         = item.TimeLeft,
                             MidPrice     = mid,
@@ -266,20 +315,41 @@ namespace VolumeDeltaBubbles
                 catch { }
             }
 
-            // Publish the new snapshot atomically.
-            _ptZoneSnapshot = zones.ToArray();
+            if (this.EnablePersistence && _zoneCache != null)
+            {
+                bool anyAdded = _zoneCache.Merge(incomingZones);
+                _ptZoneSnapshot = _zoneCache.GetSnapshot();
 
-            // Replace alert dedup state.
-            _alertedBubbles.Clear();
-            foreach (var key in alertKeys)
-                _alertedBubbles.Add(key);
+                foreach (var z in _ptZoneSnapshot)
+                    _alertedBubbles.Add((z.Time.Ticks, z.MidPrice, z.DeltaPercent >= 0));
+
+                if (anyAdded)
+                {
+                    _zoneCache.Save(GetZoneCacheFilePath(), GetActiveSymbolName(), GetFilterFingerprint());
+                }
+            }
+            else
+            {
+                // Publish the new snapshot atomically.
+                _ptZoneSnapshot = incomingZones.ToArray();
+
+                // Replace alert dedup state.
+                _alertedBubbles.Clear();
+                foreach (var key in alertKeys)
+                    _alertedBubbles.Add(key);
+            }
 
             Core.Instance.Loggers.Log(
-                $"[PTBubbles] Rebuilt zone cache: {zones.Count} zones, {_alertedBubbles.Count} alert keys.");
+                $"[PTBubbles] Rebuilt zone cache: {_ptZoneSnapshot.Length} zones, {_alertedBubbles.Count} alert keys.");
         }
 
         public new void Dispose()
         {
+            if (this.EnablePersistence && _zoneCache != null && _zoneCache.IsDirty)
+            {
+                _zoneCache.Save(GetZoneCacheFilePath(), GetActiveSymbolName(), GetFilterFingerprint());
+            }
+
             if (_powerTradesData != null)
             {
                 _powerTradesData.NewHistoryItem -= OnPowerTradesZoneFormed;

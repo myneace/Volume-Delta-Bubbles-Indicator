@@ -70,6 +70,13 @@ namespace VolumeDeltaBubbles
         [InputParameter("Auto-load symbol settings", 2)]
         public bool AutoLoadSymbolSettings = true;
 
+        // ── Data Persistence & Indexing ─────────────────────────────────────────
+        [InputParameter("Enable Zone Persistence & Indexing", 3)]
+        public bool EnablePersistence = true;
+
+        [InputParameter("Max Cached History (days)", 4, 1, 365, 1, 0)]
+        public int MaxCachedDays = 30;
+
         // ── Power Trades history window ────────────────────────────────────────
         // How many minutes of tick history to load on startup.
         // Set to 0 to load all available chart history.
@@ -193,11 +200,17 @@ namespace VolumeDeltaBubbles
                     return null;
                 }, 202));
 
+                settings.Add(new SettingItemAction("Clear Zone Cache", (args) =>
+                {
+                    this.ClearCurrentZoneCache(true);
+                    return null;
+                }, 203));
+
                 settings.Add(new SettingItemAction("Test Telegram Screenshot", (args) =>
                 {
                     this.SendTelegramBubbleAlertAsync("Test", "Manual Trigger", 0, 0, 0, Core.Instance.TimeUtils.DateTimeUtcNow);
                     return null;
-                }, 203));
+                }, 204));
 
                 return settings;
             }

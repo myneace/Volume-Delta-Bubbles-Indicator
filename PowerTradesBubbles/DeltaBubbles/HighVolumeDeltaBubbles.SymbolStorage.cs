@@ -42,6 +42,10 @@ namespace VolumeDeltaBubbles
         public string TelegramBotToken { get; set; } = string.Empty;
         public string TelegramChatId { get; set; } = string.Empty;
         public int TelegramCooldownSeconds { get; set; } = 5;
+
+        // Data Persistence & Indexing
+        public bool EnablePersistence { get; set; } = true;
+        public int MaxCachedDays { get; set; } = 30;
     }
 
     public partial class HighVolumeDeltaBubbles
@@ -154,6 +158,8 @@ namespace VolumeDeltaBubbles
                     TelegramBotToken         = this.TelegramBotToken,
                     TelegramChatId           = this.TelegramChatId,
                     TelegramCooldownSeconds  = this.TelegramCooldownSeconds,
+                    EnablePersistence        = this.EnablePersistence,
+                    MaxCachedDays            = this.MaxCachedDays,
                 };
 
                 string path = GetSettingsFilePath();
@@ -262,6 +268,9 @@ namespace VolumeDeltaBubbles
                     this.TelegramChatId       = profile.TelegramChatId;
                 if (profile.TelegramCooldownSeconds >= 0)
                     this.TelegramCooldownSeconds = profile.TelegramCooldownSeconds;
+                this.EnablePersistence = profile.EnablePersistence;
+                if (profile.MaxCachedDays > 0)
+                    this.MaxCachedDays = profile.MaxCachedDays;
 
                 // Re-subscribe to Power Trades data feed if aggregate filter settings changed
                 if (ptFiltersChanged && _powerTradesData != null)
@@ -350,11 +359,36 @@ namespace VolumeDeltaBubbles
         {
             try
             {
+                if (this.EnablePersistence && _zoneCache != null && _zoneCache.IsDirty)
+                {
+                    _zoneCache.Save(GetZoneCacheFilePath(), GetActiveSymbolName(), GetFilterFingerprint());
+                }
+
                 if (_powerTradesData != null)
                 {
                     _powerTradesData.NewHistoryItem -= OnPowerTradesZoneFormed;
                     _powerTradesData.Dispose();
                     _powerTradesData = null;
+                }
+
+                // Switch zone cache to the new symbol/filter fingerprint
+                _zoneCache = new PtZoneCache();
+                if (this.EnablePersistence)
+                {
+                    string cachePath = GetZoneCacheFilePath();
+                    string filterFp = GetFilterFingerprint();
+                    if (_zoneCache.Load(cachePath, filterFp, this.MaxCachedDays) && _zoneCache.Count > 0)
+                    {
+                        _ptZoneSnapshot = _zoneCache.GetSnapshot();
+                        _alertedBubbles.Clear();
+                        foreach (var z in _ptZoneSnapshot)
+                            _alertedBubbles.Add((z.Time.Ticks, z.MidPrice, z.DeltaPercent >= 0));
+                    }
+                    else
+                    {
+                        _ptZoneSnapshot = Array.Empty<PtZoneData>();
+                        _alertedBubbles.Clear();
+                    }
                 }
 
                 var ptParams = new HistoryAggregationPowerTradesParameters
@@ -388,11 +422,19 @@ namespace VolumeDeltaBubbles
                     }
                 }
 
+                DateTime requestFromTime = fromTime;
+                if (this.EnablePersistence && _zoneCache != null && _zoneCache.LatestTime.HasValue)
+                {
+                    DateTime overlapStart = _zoneCache.LatestTime.Value.AddMinutes(-15);
+                    if (overlapStart > fromTime)
+                        requestFromTime = overlapStart;
+                }
+
                 _powerTradesData = this.Symbol.GetHistory(new HistoryRequestParameters
                 {
                     Symbol      = this.Symbol,
                     Aggregation = new HistoryAggregationPowerTrades(ptParams),
-                    FromTime    = fromTime,
+                    FromTime    = requestFromTime,
                     ToTime      = default,
                 });
 
