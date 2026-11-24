@@ -1,0 +1,68 @@
+name: Bug Report
+description: Report a bug or unexpected behavior
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+
+  - type: input
+    id: quantower_version
+    attributes:
+      label: Quantower Version
+      placeholder: "e.g., v1.146.18"
+    validations:
+      required: true
+
+  - type: input
+    id: dotnet_version
+    attributes:
+      label: .NET SDK Version
+      description: Run `dotnet --version`
+      placeholder: "e.g., 10.0.100"
+    validations:
+      required: false
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: A clear and concise description of what the bug is.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      placeholder: |
+        1. Add indicator to a chart of symbol '...'
+        2. Set TotalVolume to '...'
+        3. Observe '...'
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant Log Output
+      description: Filter the Quantower log for `[PTBubbles]` lines.
+      render: text
+    validations:
+      required: false
+
+  - type: textarea
+    id: settings
+    attributes:
+      label: Indicator Settings
+      description: Screenshot or text of your current indicator parameter values.
+    validations:
+      required: false

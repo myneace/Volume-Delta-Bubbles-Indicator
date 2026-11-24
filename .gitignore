@@ -44,3 +44,21 @@ ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 .DS_Store
+
+# Waylog / editor history
+.waylog/
+
+# NuGet package cache
+*.nupkg
+packages/
+nuget.config
+
+# Publish output
+publish/
+out/
+
+# Sensitive: Telegram credentials & per-symbol settings are stored
+# in the Quantower output folder at runtime — not in the repo.
+# If you ever export them locally, exclude them:
+**/SymbolSettings/*.json
+**/ZoneCache/*.json

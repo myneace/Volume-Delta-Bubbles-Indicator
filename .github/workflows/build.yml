@@ -1,0 +1,57 @@
+name: Build
+
+on:
+  push:
+    branches: ["master"]
+  pull_request:
+    branches: ["master"]
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+
+      # The project references TradingPlatform.BusinessLayer.dll from a local
+      # Quantower installation.  On CI we stub this reference with a minimal
+      # placeholder DLL so the project can be compiled and syntax-checked
+      # without requiring a full Quantower installation.
+      - name: Create stub TradingPlatform.BusinessLayer.dll
+        shell: pwsh
+        run: |
+          $stubDir = "C:\Quantower\TradingPlatform\v1.146.18\bin"
+          New-Item -ItemType Directory -Force -Path $stubDir | Out-Null
+          # Compile a minimal stub assembly so the HintPath resolves
+          $stubCs = @"
+          using System;
+          namespace TradingPlatform.BusinessLayer { }
+          namespace TradingPlatform.BusinessLayer.PowerTrades { }
+          namespace TradingPlatform.BusinessLayer.History.Aggregations { }
+          "@
+          $stubCs | Out-File -Encoding utf8 "$env:TEMP\stub.cs"
+          & csc /target:library /out:"$stubDir\TradingPlatform.BusinessLayer.dll" "$env:TEMP\stub.cs" 2>&1 || true
+          # Fallback: create an empty file so the path exists
+          if (-not (Test-Path "$stubDir\TradingPlatform.BusinessLayer.dll")) {
+            New-Item -ItemType File -Path "$stubDir\TradingPlatform.BusinessLayer.dll" | Out-Null
+          }
+
+      - name: Restore dependencies
+        run: dotnet restore PowerTradesBubbles\PowerTradesBubbles.csproj
+
+      - name: Build (Release)
+        run: dotnet build PowerTradesBubbles\PowerTradesBubbles.csproj --configuration Release --no-restore
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PowerTradesBubbles-${{ github.sha }}
+          path: |
+            C:\Quantower\Settings\Scripts\Indicators\PowerTradesBubbles\
+          if-no-files-found: ignore

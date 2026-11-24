@@ -39,7 +39,7 @@ This document provides a detailed technical report of all root-cause investigati
 Bubbles failed to appear in real time on the current, forming candle and only showed up after the candle closed and a new candle began.
 
 ### Root Cause
-In [`HighVolumeDeltaBubbles.Drawing.cs`](file:///c:/Users/LJ%20JOLO/source/repos/Indicator2/Indicator2/DeltaBubbles/HighVolumeDeltaBubbles.Drawing.cs), the visible chart time filter was calculated as:
+In [`HighVolumeDeltaBubbles.Drawing.cs`](PowerTradesBubbles/DeltaBubbles/HighVolumeDeltaBubbles.Drawing.cs), the visible chart time filter was calculated as:
 ```csharp
 leftTime  = this.HistoricalData[leftIndex,  SeekOriginHistory.Begin].TimeLeft;
 rightTime = this.HistoricalData[rightIndex, SeekOriginHistory.Begin].TimeLeft;
@@ -198,10 +198,10 @@ private void RebuildFromBuffer()
 The project failed to build via `dotnet build` due to missing references to `TradingPlatform.BusinessLayer.dll`.
 
 ### Root Cause
-[`Indicator2.csproj`](file:///c:/Users/LJ%20JOLO/source/repos/Indicator2/Indicator2/Indicator2.csproj) had hardcoded paths pointing to Quantower version `v1.146.13`, whereas the installed Quantower version on the system is `v1.146.18`.
+[`Indicator2.csproj`](PowerTradesBubbles/PowerTradesBubbles.csproj) had hardcoded paths pointing to Quantower version `v1.146.13`, whereas the installed Quantower version on the system is `v1.146.18`.
 
 ### Implementation Fix
-Updated all HintPaths and OutputPaths in [`Indicator2.csproj`](file:///c:/Users/LJ%20JOLO/source/repos/Indicator2/Indicator2/Indicator2.csproj):
+Updated all HintPaths and OutputPaths in [`Indicator2.csproj`](PowerTradesBubbles/PowerTradesBubbles.csproj):
 ```xml
 <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
   <OutputPath>C:\Quantower\TradingPlatform\v1.146.18\..\..\Settings\Scripts\Indicators\Indicator2</OutputPath>
@@ -267,10 +267,10 @@ NewHistoryItem ──► OnPowerTradesZoneFormed() [Data Event Thread]
 
 ## 8. File-by-File Breakdown of Changes
 
-### 1. [`Indicator2.csproj`](file:///c:/Users/LJ%20JOLO/source/repos/Indicator2/Indicator2/Indicator2.csproj)
+### 1. [`PowerTradesBubbles.csproj`](PowerTradesBubbles/PowerTradesBubbles.csproj)
 - Updated Quantower version reference from `v1.146.13` to `v1.146.18`.
 
-### 2. [`HighVolumeDeltaBubbles.Core.cs`](file:///c:/Users/LJ%20JOLO/source/repos/Indicator2/Indicator2/DeltaBubbles/HighVolumeDeltaBubbles.Core.cs)
+### 2. [`HighVolumeDeltaBubbles.Core.cs`](PowerTradesBubbles/DeltaBubbles/HighVolumeDeltaBubbles.Core.cs)
 - Added `PtZoneData` struct and `volatile PtZoneData[] _ptZoneSnapshot`.
 - Added cached `_labelFont` and `_statusFont` fields.
 - Implemented `AppendZoneToSnapshot(...)` for atomic, lock-free real-time zone additions.
@@ -278,7 +278,7 @@ NewHistoryItem ──► OnPowerTradesZoneFormed() [Data Event Thread]
 - Updated `OnPowerTradesZoneFormed()` to handle snapshot appending and strictly synchronized alert triggers.
 - Updated `Dispose()` to properly release fonts and clear collections.
 
-### 3. [`HighVolumeDeltaBubbles.Drawing.cs`](file:///c:/Users/LJ%20JOLO/source/repos/Indicator2/Indicator2/DeltaBubbles/HighVolumeDeltaBubbles.Drawing.cs)
+### 3. [`HighVolumeDeltaBubbles.Drawing.cs`](PowerTradesBubbles/DeltaBubbles/HighVolumeDeltaBubbles.Drawing.cs)
 - Rewrote `OnPaintChart` to render directly from `_ptZoneSnapshot`.
 - Set `rightTime = Core.Instance.TimeUtils.DateTimeUtcNow.AddSeconds(10)` to ensure forming candle zones are immediately visible.
 - Replaced per-bubble `SolidBrush`/`Pen` allocations with single reused instances.
@@ -286,10 +286,10 @@ NewHistoryItem ──► OnPowerTradesZoneFormed() [Data Event Thread]
 - Removed intermediate `List<LevelCandidate>` allocations.
 - Removed all sound alert logic from the rendering loop.
 
-### 4. [`HighVolumeDeltaBubbles.Alerts.cs`](file:///c:/Users/LJ%20JOLO/source/repos/Indicator2/Indicator2/DeltaBubbles/HighVolumeDeltaBubbles.Alerts.cs)
+### 4. [`HighVolumeDeltaBubbles.Alerts.cs`](PowerTradesBubbles/DeltaBubbles/HighVolumeDeltaBubbles.Alerts.cs)
 - Refactored `PlaySoundAsync` to use non-blocking event-driven resource disposal on `outputDevice.PlaybackStopped`.
 
-### 5. [`HighVolumeDeltaBubbles.SymbolStorage.cs`](file:///c:/Users/LJ%20JOLO/source/repos/Indicator2/Indicator2/DeltaBubbles/HighVolumeDeltaBubbles.SymbolStorage.cs)
+### 5. [`HighVolumeDeltaBubbles.SymbolStorage.cs`](PowerTradesBubbles/DeltaBubbles/HighVolumeDeltaBubbles.SymbolStorage.cs)
 - Updated `ReSubscribePowerTrades()` to call `RebuildFromBuffer()` to keep the snapshot and alert state synchronized after parameter changes.
 
 ---
