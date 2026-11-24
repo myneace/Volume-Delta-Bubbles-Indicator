@@ -1,6 +1,6 @@
-# Power Trades Bubbles Indicator — Comprehensive Fix & Optimization Summary
+# Volume Delta Bubbles Indicator — Comprehensive Fix & Optimization Summary
 
-This document provides a detailed technical report of all root-cause investigations, architectural fixes, performance optimizations, and verification steps performed on the **Power Trades Bubbles** Quantower indicator codebase.
+This document provides a detailed technical report of all root-cause investigations, architectural fixes, performance optimizations, and verification steps performed on the **Volume Delta Bubbles** Quantower indicator codebase.
 
 ---
 
@@ -23,7 +23,7 @@ This document provides a detailed technical report of all root-cause investigati
 | Issue / Optimization | Root Cause | Implemented Solution | Result |
 |---|---|---|---|
 | **Delayed Bubble Creation** | Visible time clipping window used bar open time with an insufficient 10 s buffer, excluding active candle events until the bar closed. | Changed `rightTime` calculation to `DateTimeUtcNow + 10s`. | Bubbles now appear in real time on forming candles without waiting for close. |
-| **Alert Desynchronization** | Alert generation logic was inside `OnPaintChart`, triggering sounds on viewport changes (scroll, zoom, repaint) for historical zones. | Extracted alert handling to the real-time event `OnPowerTradesZoneFormed`. | Sounds fire strictly once per qualifying new Power Trades zone. |
+| **Alert Desynchronization** | Alert generation logic was inside `OnPaintChart`, triggering sounds on viewport changes (scroll, zoom, repaint) for historical zones. | Extracted alert handling to the real-time event `OnPowerTradesZoneFormed`. | Sounds fire strictly once per qualifying new Volume Delta zone. |
 | **First Activation Alert Burst** | Alert history deduplication set was unpopulated on initial startup when alerts were disabled. Enabling alerts caused visible historical zones to be evaluated as "new". | Added `RebuildFromBuffer()` to pre-populate deduplication keys on startup and resubscribe. | Enabling alerts no longer triggers spurious historical sounds. |
 | **Render-Loop SDK Traversal** | `OnPaintChart` called `_powerTradesData[i, SeekOriginHistory.Begin]` hundreds of times per frame (~30,000 native SDK calls/sec at 60 FPS). | Implemented `volatile PtZoneData[] _ptZoneSnapshot` in managed memory with lock-free atomic updates. | Zero native SDK calls during chart rendering. |
 | **GDI Resource Churn** | `SolidBrush`, `Pen`, and `Font` objects were created and destroyed per-bubble and per-frame (6,000+ GDI handles/sec). | Cached fonts in `OnInit()` and reused brush/pen instances by mutating `.Color`. | Eliminated GDI handle churn and kernel-mode transitions. |
@@ -39,7 +39,7 @@ This document provides a detailed technical report of all root-cause investigati
 Bubbles failed to appear in real time on the current, forming candle and only showed up after the candle closed and a new candle began.
 
 ### Root Cause
-In [`HighVolumeDeltaBubbles.Drawing.cs`](PowerTradesBubbles/DeltaBubbles/HighVolumeDeltaBubbles.Drawing.cs), the visible chart time filter was calculated as:
+In [`HighVolumeDeltaBubbles.Drawing.cs`](VolumeDeltaBubbles/DeltaBubbles/HighVolumeDeltaBubbles.Drawing.cs), the visible chart time filter was calculated as:
 ```csharp
 leftTime  = this.HistoricalData[leftIndex,  SeekOriginHistory.Begin].TimeLeft;
 rightTime = this.HistoricalData[rightIndex, SeekOriginHistory.Begin].TimeLeft;
@@ -47,7 +47,7 @@ rightTime = rightTime.AddSeconds(this.TimeInterval + 5);
 ```
 - In Quantower, `HistoricalData[rightIndex].TimeLeft` represents the **bar open time** (e.g., `12:00:00` for a 1-minute bar spanning `12:00:00`–`12:01:00`).
 - The offset added was `TimeInterval + 5` (default: 5 s + 5 s = 10 s), setting `rightTime` to `12:00:10`.
-- Any Power Trades zone forming between second 11 and second 60 had `item.TimeLeft > rightTime`, causing it to be silently skipped by the visibility filter `if (item.TimeLeft > rightTime) continue;`.
+- Any Volume Delta zone forming between second 11 and second 60 had `item.TimeLeft > rightTime`, causing it to be silently skipped by the visibility filter `if (item.TimeLeft > rightTime) continue;`.
 - Only when the bar finished and a new bar opened did `rightIndex` advance, finally revealing the previous bar's bubbles.
 
 ### Implementation Fix
@@ -101,7 +101,7 @@ private void OnPowerTradesZoneFormed(object sender, HistoryEventArgs e)
                 }
             }
         }
-        catch (Exception ex) { Core.Instance.Loggers.Log($"[PTBubbles] Zone event error: {ex.Message}"); }
+        catch (Exception ex) { Core.Instance.Loggers.Log($"[VolΔBubbles] Zone event error: {ex.Message}"); }
     }
     this.CurrentChart?.RedrawBuffer();
 }
@@ -198,10 +198,10 @@ private void RebuildFromBuffer()
 The project failed to build via `dotnet build` due to missing references to `TradingPlatform.BusinessLayer.dll`.
 
 ### Root Cause
-[`Indicator2.csproj`](PowerTradesBubbles/PowerTradesBubbles.csproj) had hardcoded paths pointing to Quantower version `v1.146.13`, whereas the installed Quantower version on the system is `v1.146.18`.
+[`Indicator2.csproj`](VolumeDeltaBubbles/VolumeDeltaBubbles.csproj) had hardcoded paths pointing to Quantower version `v1.146.13`, whereas the installed Quantower version on the system is `v1.146.18`.
 
 ### Implementation Fix
-Updated all HintPaths and OutputPaths in [`Indicator2.csproj`](PowerTradesBubbles/PowerTradesBubbles.csproj):
+Updated all HintPaths and OutputPaths in [`Indicator2.csproj`](VolumeDeltaBubbles/VolumeDeltaBubbles.csproj):
 ```xml
 <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
   <OutputPath>C:\Quantower\TradingPlatform\v1.146.18\..\..\Settings\Scripts\Indicators\Indicator2</OutputPath>
@@ -267,10 +267,10 @@ NewHistoryItem ──► OnPowerTradesZoneFormed() [Data Event Thread]
 
 ## 8. File-by-File Breakdown of Changes
 
-### 1. [`PowerTradesBubbles.csproj`](PowerTradesBubbles/PowerTradesBubbles.csproj)
+### 1. [`VolumeDeltaBubbles.csproj`](VolumeDeltaBubbles/VolumeDeltaBubbles.csproj)
 - Updated Quantower version reference from `v1.146.13` to `v1.146.18`.
 
-### 2. [`HighVolumeDeltaBubbles.Core.cs`](PowerTradesBubbles/DeltaBubbles/HighVolumeDeltaBubbles.Core.cs)
+### 2. [`HighVolumeDeltaBubbles.Core.cs`](VolumeDeltaBubbles/DeltaBubbles/HighVolumeDeltaBubbles.Core.cs)
 - Added `PtZoneData` struct and `volatile PtZoneData[] _ptZoneSnapshot`.
 - Added cached `_labelFont` and `_statusFont` fields.
 - Implemented `AppendZoneToSnapshot(...)` for atomic, lock-free real-time zone additions.
@@ -278,7 +278,7 @@ NewHistoryItem ──► OnPowerTradesZoneFormed() [Data Event Thread]
 - Updated `OnPowerTradesZoneFormed()` to handle snapshot appending and strictly synchronized alert triggers.
 - Updated `Dispose()` to properly release fonts and clear collections.
 
-### 3. [`HighVolumeDeltaBubbles.Drawing.cs`](PowerTradesBubbles/DeltaBubbles/HighVolumeDeltaBubbles.Drawing.cs)
+### 3. [`HighVolumeDeltaBubbles.Drawing.cs`](VolumeDeltaBubbles/DeltaBubbles/HighVolumeDeltaBubbles.Drawing.cs)
 - Rewrote `OnPaintChart` to render directly from `_ptZoneSnapshot`.
 - Set `rightTime = Core.Instance.TimeUtils.DateTimeUtcNow.AddSeconds(10)` to ensure forming candle zones are immediately visible.
 - Replaced per-bubble `SolidBrush`/`Pen` allocations with single reused instances.
@@ -286,10 +286,10 @@ NewHistoryItem ──► OnPowerTradesZoneFormed() [Data Event Thread]
 - Removed intermediate `List<LevelCandidate>` allocations.
 - Removed all sound alert logic from the rendering loop.
 
-### 4. [`HighVolumeDeltaBubbles.Alerts.cs`](PowerTradesBubbles/DeltaBubbles/HighVolumeDeltaBubbles.Alerts.cs)
+### 4. [`HighVolumeDeltaBubbles.Alerts.cs`](VolumeDeltaBubbles/DeltaBubbles/HighVolumeDeltaBubbles.Alerts.cs)
 - Refactored `PlaySoundAsync` to use non-blocking event-driven resource disposal on `outputDevice.PlaybackStopped`.
 
-### 5. [`HighVolumeDeltaBubbles.SymbolStorage.cs`](PowerTradesBubbles/DeltaBubbles/HighVolumeDeltaBubbles.SymbolStorage.cs)
+### 5. [`HighVolumeDeltaBubbles.SymbolStorage.cs`](VolumeDeltaBubbles/DeltaBubbles/HighVolumeDeltaBubbles.SymbolStorage.cs)
 - Updated `ReSubscribePowerTrades()` to call `RebuildFromBuffer()` to keep the snapshot and alert state synchronized after parameter changes.
 
 ---

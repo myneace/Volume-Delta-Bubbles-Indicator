@@ -11,7 +11,7 @@ namespace VolumeDeltaBubbles
     public partial class HighVolumeDeltaBubbles : Indicator
     {
         // ── Paint-data snapshot ───────────────────────────────────────────────
-        // A plain managed-memory cache of Power Trades zone data extracted from
+        // A plain managed-memory cache of Volume Delta zone data extracted from
         // _powerTradesData.  Updated atomically via a volatile reference swap so
         // OnPaintChart can read it lock-free without touching the SDK buffer.
         //
@@ -51,17 +51,17 @@ namespace VolumeDeltaBubbles
         private readonly string _soundBuy;
         private readonly string _soundSell;
 
-        // Power Trades SDK subscription (open-ended → streams real-time zones).
+        // Volume Delta SDK subscription (open-ended → streams real-time zones).
         private HistoricalData _powerTradesData;
 
-        public override string ShortName => "PT Bubbles";
+        public override string ShortName => "VolΔ Bubbles";
 
         public HighVolumeDeltaBubbles()
             : base()
         {
-            Name = "Power Trades Bubbles";
+            Name = "Volume Delta Bubbles";
             Description =
-                "Plots a bubble at every Power Trades zone — Quantower's large-aggressive-order " +
+                "Plots a bubble at every Volume Delta zone — Quantower's large-aggressive-order " +
                 "detector. Bubble size reflects combined cumulative zone volume and directional " +
                 "skew (Cumulative × |Δ%| / 100); color shows buy vs. sell dominance.";
 
@@ -70,7 +70,7 @@ namespace VolumeDeltaBubbles
             _soundBuy  = ResolveSoundPath("eee.mp3");
             _soundSell = ResolveSoundPath("ohm.mp3");
             Core.Instance.Loggers.Log(
-                $"[PTBubbles] Sound paths — buy='{_soundBuy}'  sell='{_soundSell}'");
+                $"[VolΔBubbles] Sound paths — buy='{_soundBuy}'  sell='{_soundSell}'");
         }
 
         protected override void OnInit()
@@ -102,7 +102,7 @@ namespace VolumeDeltaBubbles
                         _alertedBubbles.Add((z.Time.Ticks, z.MidPrice, z.DeltaPercent >= 0));
 
                     Core.Instance.Loggers.Log(
-                        $"[PTBubbles] Warm start: loaded {_zoneCache.Count} cached zones from '{cachePath}'. Instant paint active.");
+                        $"[VolΔBubbles] Warm start: loaded {_zoneCache.Count} cached zones from '{cachePath}'. Instant paint active.");
                 }
             }
 
@@ -145,7 +145,7 @@ namespace VolumeDeltaBubbles
                 {
                     requestFromTime = overlapStart;
                     Core.Instance.Loggers.Log(
-                        $"[PTBubbles] Incremental query: requesting history from {requestFromTime:u} (latest cached={_zoneCache.LatestTime.Value:u}) instead of {fromTime:u}.");
+                        $"[VolΔBubbles] Incremental query: requesting history from {requestFromTime:u} (latest cached={_zoneCache.LatestTime.Value:u}) instead of {fromTime:u}.");
                 }
             }
 
@@ -166,12 +166,12 @@ namespace VolumeDeltaBubbles
             RebuildFromBuffer();
 
             Core.Instance.Loggers.Log(
-                $"[PTBubbles] Subscribed — lookback={this.LookbackMinutes} min (queryStart={requestFromTime:u}), " +
+                $"[VolΔBubbles] Subscribed — lookback={this.LookbackMinutes} min (queryStart={requestFromTime:u}), " +
                 $"totalVol={this.TotalVolume}, deltaFilter={this.DeltaFilter}");
         }
 
         /// <summary>
-        /// Fires whenever a new Power Trades zone completes in real-time.
+        /// Fires whenever a new Volume Delta zone completes in real-time.
         /// Appends the zone to the paint snapshot and triggers a sound alert
         /// (if enabled), then schedules a chart redraw.
         /// </summary>
@@ -230,7 +230,7 @@ namespace VolumeDeltaBubbles
                             {
                                 string sf = isBuyDominant ? _soundBuy : _soundSell;
                                 Core.Instance.Loggers.Log(
-                                    $"[PTBubbles] Sound Alert — {(isBuyDominant ? "BUY" : "SELL")} " +
+                                    $"[VolΔBubbles] Sound Alert — {(isBuyDominant ? "BUY" : "SELL")} " +
                                     $"price={zoneMidPrice:F5}  cumVol={pt.Cumulative:F0}  file={sf}");
                                 PlaySoundAsync(sf);
                             }
@@ -240,7 +240,7 @@ namespace VolumeDeltaBubbles
                 catch (Exception ex)
                 {
                     Core.Instance.Loggers.Log(
-                        $"[PTBubbles] Zone event error: {ex.Message}");
+                        $"[VolΔBubbles] Zone event error: {ex.Message}");
                 }
             }
 
@@ -340,7 +340,7 @@ namespace VolumeDeltaBubbles
             }
 
             Core.Instance.Loggers.Log(
-                $"[PTBubbles] Rebuilt zone cache: {_ptZoneSnapshot.Length} zones, {_alertedBubbles.Count} alert keys.");
+                $"[VolΔBubbles] Rebuilt zone cache: {_ptZoneSnapshot.Length} zones, {_alertedBubbles.Count} alert keys.");
         }
 
         public new void Dispose()

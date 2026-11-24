@@ -1,14 +1,14 @@
 // ============================================================================
-//  Power Trades Bubbles  —  Quantower custom indicator
+//  Volume Delta Bubbles  —  Quantower custom indicator
 // ----------------------------------------------------------------------------
-//  Plots a bubble on the price chart for every Power Trades zone detected by
+//  Plots a bubble on the price chart for every Volume Delta zone detected by
 //  Quantower's built-in order-flow engine. Each zone represents a period where
 //  a large volume of aggressive orders accumulated within a short time window,
 //  creating a meaningful directional imbalance.
 //
-//  Data source — Power Trades API:
+//  Data source — Volume Delta API:
 //    The indicator subscribes to Quantower's HistoryAggregationPowerTrades,
-//    the same engine that drives the native Power Trades panel. Zones are
+//    the same engine that drives the native Volume Delta panel. Zones are
 //    pre-filtered by the platform using the parameters set below. No Volume
 //    Analysis / Footprint data is required.
 //
@@ -28,7 +28,7 @@
 //    no manual refresh needed.
 //
 //  Settings live in the indicator's "Settings" window once added to a chart:
-//    Power Trades filters (applied at load time — reload to change):
+//    Volume Delta filters (applied at load time — reload to change):
 //      Lookback window, Min cumulative volume, Min/Max single-trade volume,
 //      Time interval, Basis volume interval, Min delta %, Min basis ratio %,
 //      Min/Max zone height.
@@ -77,14 +77,14 @@ namespace VolumeDeltaBubbles
         [InputParameter("Max Cached History (days)", 4, 1, 365, 1, 0)]
         public int MaxCachedDays = 30;
 
-        // ── Power Trades history window ────────────────────────────────────────
+        // ── Volume Delta history window ────────────────────────────────────────
         // How many minutes of tick history to load on startup.
         // Set to 0 to load all available chart history.
         [InputParameter("Lookback window (minutes)", 5, 0, 999999, 1, 0)]
         public int LookbackMinutes = 900;
 
-        // ── Power Trades zone filters ──────────────────────────────────────────
-        // These mirror the parameters in Quantower's own Power Trades panel.
+        // ── Volume Delta zone filters ──────────────────────────────────────────
+        // These mirror the parameters in Quantower's own Volume Delta panel.
         // IMPORTANT: They are baked into the data subscription at load time.
         // Reload (remove + re-add) the indicator after changing any of them.
 
@@ -104,7 +104,7 @@ namespace VolumeDeltaBubbles
 
         /// <summary>
         /// Rolling time window (seconds) within which trades must cluster to
-        /// be counted as a single Power Trades zone event.
+        /// be counted as a single Volume Delta zone event.
         /// Matches "Time interval" in the PT panel UI.
         /// </summary>
         [InputParameter("Time Interval (sec)", 13, 1, 3600, 1, 0)]

@@ -1,4 +1,4 @@
-# Contributing to Power Trades Bubbles
+# Contributing to Volume Delta Bubbles
 
 Thank you for your interest in contributing! Here's everything you need to get started.
 
@@ -19,7 +19,7 @@ Before opening an issue, please:
 
 1. **Search existing issues** to avoid duplicates.
 2. Confirm the bug occurs with a fresh Quantower restart and default settings.
-3. Gather the **Quantower log output** (look for `[PTBubbles]` lines).
+3. Gather the **Quantower log output** (look for `[VolΔBubbles]` lines).
 
 When opening an issue, include:
 
@@ -55,14 +55,14 @@ Open a **Feature Request** issue and describe:
 ### Clone & Build
 
 ```powershell
-git clone https://github.com/<your-username>/PowerTradesBubbles.git
-cd PowerTradesBubbles
-dotnet build PowerTradesBubbles\PowerTradesBubbles.csproj --configuration Debug
+git clone https://github.com/<your-username>/VolumeDeltaBubbles.git
+cd VolumeDeltaBubbles
+dotnet build VolumeDeltaBubbles\VolumeDeltaBubbles.csproj --configuration Debug
 ```
 
 > [!IMPORTANT]
 > The project references `TradingPlatform.BusinessLayer.dll` from your local Quantower installation.
-> If Quantower is not installed at `C:\Quantower\`, update the `HintPath` in [`PowerTradesBubbles.csproj`](PowerTradesBubbles/PowerTradesBubbles.csproj).
+> If Quantower is not installed at `C:\Quantower\`, update the `HintPath` in [`VolumeDeltaBubbles.csproj`](VolumeDeltaBubbles/VolumeDeltaBubbles.csproj).
 
 ---
 
@@ -75,7 +75,7 @@ dotnet build PowerTradesBubbles\PowerTradesBubbles.csproj --configuration Debug
 2. Make your changes.
 3. Ensure the project builds without errors:
    ```powershell
-   dotnet build PowerTradesBubbles\PowerTradesBubbles.csproj --configuration Release
+   dotnet build VolumeDeltaBubbles\VolumeDeltaBubbles.csproj --configuration Release
    ```
 4. Test the indicator in Quantower on a live symbol.
 5. Push your branch and open a Pull Request against `master`.

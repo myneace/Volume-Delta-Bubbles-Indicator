@@ -54,7 +54,7 @@ body:
     id: logs
     attributes:
       label: Relevant Log Output
-      description: Filter the Quantower log for `[PTBubbles]` lines.
+      description: Filter the Quantower log for `[VolΔBubbles]` lines.
       render: text
     validations:
       required: false

@@ -89,7 +89,7 @@ namespace VolumeDeltaBubbles
             }
             catch (Exception ex)
             {
-                Core.Instance.Loggers.Log($"[PTBubbles] Error loading zone cache from {filePath}: {ex.Message}");
+                Core.Instance.Loggers.Log($"[VolΔBubbles] Error loading zone cache from {filePath}: {ex.Message}");
                 return false;
             }
         }
@@ -130,12 +130,12 @@ namespace VolumeDeltaBubbles
                 File.Move(tempPath, filePath, overwrite: true);
 
                 _isDirty = false;
-                Core.Instance.Loggers.Log($"[PTBubbles] Saved {_zonesByKey.Count} zones to cache: {filePath}");
+                Core.Instance.Loggers.Log($"[VolΔBubbles] Saved {_zonesByKey.Count} zones to cache: {filePath}");
                 return true;
             }
             catch (Exception ex)
             {
-                Core.Instance.Loggers.Log($"[PTBubbles] Error saving zone cache to {filePath}: {ex.Message}");
+                Core.Instance.Loggers.Log($"[VolΔBubbles] Error saving zone cache to {filePath}: {ex.Message}");
                 return false;
             }
         }
@@ -197,7 +197,7 @@ namespace VolumeDeltaBubbles
             {
                 string dir = Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "Quantower", "PowerTradesBubbles", "ZoneCache");
+                    "Quantower", "VolumeDeltaBubbles", "ZoneCache");
                 if (!Directory.Exists(dir))
                     Directory.CreateDirectory(dir);
                 return dir;
@@ -206,7 +206,7 @@ namespace VolumeDeltaBubbles
 
         private string GetFilterFingerprint()
         {
-            // Fingerprint includes all parameters that affect Power Trades zone formation
+            // Fingerprint includes all parameters that affect Volume Delta zone formation
             string raw = $"{this.TotalVolume:F2}_{this.MinTradeVolume:F2}_{this.MaxTradeVolume:F2}_" +
                          $"{this.TimeInterval}_{this.BasisVolumeInterval}_" +
                          $"{this.MinZoneHeight}_{this.MaxZoneHeight}_" +
@@ -237,7 +237,7 @@ namespace VolumeDeltaBubbles
                 _ptZoneSnapshot = Array.Empty<PtZoneData>();
                 _alertedBubbles.Clear();
 
-                Core.Instance.Loggers.Log($"[PTBubbles] Zone cache cleared for '{sym}' ({path}).");
+                Core.Instance.Loggers.Log($"[VolΔBubbles] Zone cache cleared for '{sym}' ({path}).");
 
                 // Re-subscribe to force fresh data acquisition from broker
                 ReSubscribePowerTrades();
@@ -246,14 +246,14 @@ namespace VolumeDeltaBubbles
                 {
                     System.Windows.Forms.MessageBox.Show(
                         $"Zone cache for '{sym}' has been cleared.\n\nRe-fetching fresh history from broker.",
-                        "Power Trades Bubbles",
+                        "Volume Delta Bubbles",
                         System.Windows.Forms.MessageBoxButtons.OK,
                         System.Windows.Forms.MessageBoxIcon.Information);
                 }
             }
             catch (Exception ex)
             {
-                Core.Instance.Loggers.Log($"[PTBubbles] Error clearing zone cache: {ex.Message}");
+                Core.Instance.Loggers.Log($"[VolΔBubbles] Error clearing zone cache: {ex.Message}");
             }
         }
     }

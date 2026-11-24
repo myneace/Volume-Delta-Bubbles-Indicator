@@ -43,15 +43,15 @@ jobs:
           }
 
       - name: Restore dependencies
-        run: dotnet restore PowerTradesBubbles\PowerTradesBubbles.csproj
+        run: dotnet restore VolumeDeltaBubbles\VolumeDeltaBubbles.csproj
 
       - name: Build (Release)
-        run: dotnet build PowerTradesBubbles\PowerTradesBubbles.csproj --configuration Release --no-restore
+        run: dotnet build VolumeDeltaBubbles\VolumeDeltaBubbles.csproj --configuration Release --no-restore
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: PowerTradesBubbles-${{ github.sha }}
+          name: VolumeDeltaBubbles-${{ github.sha }}
           path: |
-            C:\Quantower\Settings\Scripts\Indicators\PowerTradesBubbles\
+            C:\Quantower\Settings\Scripts\Indicators\VolumeDeltaBubbles\
           if-no-files-found: ignore

@@ -1,6 +1,6 @@
-# Power Trades Bubbles
+# Volume Delta Bubbles Indicator
 
-A high-performance [Quantower](https://www.quantower.com/) chart indicator that renders a **bubble at every Power Trades zone** — Quantower's large-aggressive-order detector. Bubble size encodes combined cumulative zone volume and directional skew; color encodes buy vs. sell dominance. Includes real-time sound alerts, Telegram screenshot delivery, and persistent zone caching.
+A high-performance [Quantower](https://www.quantower.com/) chart indicator that renders a **bubble at every Volume Delta zone** — Quantower's large-aggressive-order detector. Bubble size encodes combined cumulative zone volume and directional skew; color encodes buy vs. sell dominance. Includes real-time sound alerts, Telegram screenshot delivery, and persistent zone caching.
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-Quantower-informational)
@@ -43,7 +43,14 @@ A high-performance [Quantower](https://www.quantower.com/) chart indicator that 
 
 ## Screenshots
 
-> _Add screenshots of the indicator running on a Quantower chart here._
+### Chart View & Volume Delta Bubbles
+![Quantower Chart](VolumeDeltaBubbles/assets/Quantower_Screenshots.png)
+
+### Indicator Configuration & Parameters
+![Indicator Settings](VolumeDeltaBubbles/assets/Settings.png)
+
+### Automated Telegram Alert Screenshot
+![Telegram Alerts](VolumeDeltaBubbles/assets/Telegram.png)
 
 ---
 
@@ -65,15 +72,15 @@ A high-performance [Quantower](https://www.quantower.com/) chart indicator that 
 1. Download the latest release from the [Releases](../../releases) page.
 2. Copy **all files** from the zip into:
    ```
-   C:\Quantower\Settings\Scripts\Indicators\PowerTradesBubbles\
+   C:\Quantower\Settings\Scripts\Indicators\VolumeDeltaBubbles\
    ```
    The folder must contain at minimum:
-   - `PowerTradesBubbles.dll`
+   - `VolumeDeltaBubbles.dll`
    - `NAudio.dll` (bundled)
    - `sound\eee.mp3`
    - `sound\ohm.mp3`
 3. Restart Quantower (or reload scripts from the Scripts panel).
-4. Add **Power Trades Bubbles** to any chart.
+4. Add **Volume Delta Bubbles** to any chart.
 
 ### Option B — Build from Source
 
@@ -85,12 +92,12 @@ See [Building from Source](#building-from-source).
 
 All parameters are exposed in the Quantower indicator settings panel.
 
-### Power Trades Filter Parameters
+### Volume Delta Filter Parameters
 
 | Parameter | Default | Description |
 |---|---|---|
 | **Lookback Minutes** | 30 | History window to request from the broker. `0` = use the full chart history. |
-| **Total Volume** | 100 | Minimum total volume threshold for a Power Trades zone |
+| **Total Volume** | 100 | Minimum total volume threshold for a Volume Delta zone |
 | **Min/Max Trade Volume** | 0 / 1,000,000 | Trade size bounds for zone inclusion |
 | **Time Interval (s)** | 5 | Aggregation time window (seconds) |
 | **Basis Volume Interval** | 300 | Basis volume calculation period |
@@ -191,15 +198,15 @@ OnPowerTradesZoneFormed()   [data event thread]
 
 ```powershell
 # Clone
-git clone https://github.com/<your-username>/PowerTradesBubbles.git
-cd PowerTradesBubbles
+git clone https://github.com/<your-username>/VolumeDeltaBubbles.git
+cd VolumeDeltaBubbles
 
 # Build Release (output goes directly to Quantower indicators folder)
-dotnet build PowerTradesBubbles\PowerTradesBubbles.csproj --configuration Release
+dotnet build VolumeDeltaBubbles\VolumeDeltaBubbles.csproj --configuration Release
 ```
 
 > [!NOTE]
-> The `.csproj` output path is hardcoded to `C:\Quantower\TradingPlatform\v1.146.18\..\..\Settings\Scripts\Indicators\PowerTradesBubbles`. If your Quantower is installed elsewhere or on a different version, update `OutputPath` and `HintPath` in [`PowerTradesBubbles.csproj`](PowerTradesBubbles/PowerTradesBubbles.csproj).
+> The `.csproj` output path is hardcoded to `C:\Quantower\TradingPlatform\v1.146.18\..\..\Settings\Scripts\Indicators\VolumeDeltaBubbles`. If your Quantower is installed elsewhere or on a different version, update `OutputPath` and `HintPath` in [`VolumeDeltaBubbles.csproj`](VolumeDeltaBubbles/VolumeDeltaBubbles.csproj).
 
 ### Expected Build Output
 ```

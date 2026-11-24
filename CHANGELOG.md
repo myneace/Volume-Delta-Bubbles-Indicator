@@ -1,6 +1,6 @@
 # Changelog
 
-All notable changes to **Power Trades Bubbles** are documented here.
+All notable changes to **Volume Delta Bubbles** are documented here.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and this project adheres to [Semantic Versioning](https://semver.org/).
 
@@ -37,5 +37,5 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/) and this
 - ThreadPool starvation from blocking `while (Playing) Thread.Sleep(100)` in audio playback (replaced with `PlaybackStopped` event disposal).
 - Build failure referencing non-existent Quantower `v1.146.13` SDK — updated to `v1.146.18`.
 
-[Unreleased]: https://github.com/<your-username>/PowerTradesBubbles/compare/v1.0.0...HEAD
-[1.0.0]: https://github.com/<your-username>/PowerTradesBubbles/releases/tag/v1.0.0
+[Unreleased]: https://github.com/<your-username>/VolumeDeltaBubbles/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/<your-username>/VolumeDeltaBubbles/releases/tag/v1.0.0

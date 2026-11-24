@@ -30,13 +30,13 @@ namespace VolumeDeltaBubbles
                                  $"Vol: {FormatVolume(cumulativeVolume)} | " +
                                  $"Δ: {deltaPercent:+0.0;-0.0;0.0}% | Time: {time:HH:mm:ss}";
 
-                Core.Instance.Loggers.Log($"[PTBubbles] Native Alert — {title} — {message}");
+                Core.Instance.Loggers.Log($"[VolΔBubbles] Native Alert — {title} — {message}");
 
                 Core.Instance.Alert(message, title, symName);
             }
             catch (Exception ex)
             {
-                Core.Instance.Loggers.Log($"[PTBubbles] Error triggering native alert: {ex.Message}");
+                Core.Instance.Loggers.Log($"[VolΔBubbles] Error triggering native alert: {ex.Message}");
             }
         }
 

@@ -16,12 +16,12 @@ namespace VolumeDeltaBubbles
 
                 Graphics gr = args.Graphics;
 
-                // ---- Power Trades data readiness check ----
+                // ---- Volume Delta data readiness check ----
                 Font statusFont = _statusFont ?? new Font("Segoe UI", 9, FontStyle.Italic);
                 if (_powerTradesData == null)
                 {
                     DrawShadowedString(gr,
-                        "Power Trades Bubbles: initializing…",
+                        "Volume Delta Bubbles: initializing…",
                         statusFont, args.Rectangle.Left + 8, args.Rectangle.Top + 8);
                     return;
                 }
@@ -31,7 +31,7 @@ namespace VolumeDeltaBubbles
                 if (snapshot.Length == 0)
                 {
                     DrawShadowedString(gr,
-                        "Power Trades Bubbles: no zones found " +
+                        "Volume Delta Bubbles: no zones found " +
                         "(check feed supports tick data and PT settings)",
                         statusFont, args.Rectangle.Left + 8, args.Rectangle.Top + 8);
                     return;
@@ -158,7 +158,7 @@ namespace VolumeDeltaBubbles
             }
             catch (Exception ex)
             {
-                Core.Instance.Loggers.Log("PowerTradesBubbles paint error: " + ex.Message);
+                Core.Instance.Loggers.Log("VolumeDeltaBubbles paint error: " + ex.Message);
             }
         }
 

@@ -110,7 +110,7 @@ namespace VolumeDeltaBubbles
 
             if (string.IsNullOrWhiteSpace(this.TelegramBotToken) || string.IsNullOrWhiteSpace(this.TelegramChatId))
             {
-                Core.Instance.Loggers.Log("[PTBubbles] Telegram screenshot skipped: Bot Token or Chat ID is not configured.");
+                Core.Instance.Loggers.Log("[VolΔBubbles] Telegram screenshot skipped: Bot Token or Chat ID is not configured.");
                 return;
             }
 
@@ -120,7 +120,7 @@ namespace VolumeDeltaBubbles
                 var elapsed = DateTime.UtcNow - _lastTelegramSentTime;
                 if (elapsed.TotalSeconds < this.TelegramCooldownSeconds)
                 {
-                    Core.Instance.Loggers.Log($"[PTBubbles] Telegram alert throttled by cooldown ({elapsed.TotalSeconds:F1}s / {this.TelegramCooldownSeconds}s).");
+                    Core.Instance.Loggers.Log($"[VolΔBubbles] Telegram alert throttled by cooldown ({elapsed.TotalSeconds:F1}s / {this.TelegramCooldownSeconds}s).");
                     return;
                 }
             }
@@ -157,7 +157,7 @@ namespace VolumeDeltaBubbles
 
                     if (string.IsNullOrEmpty(tempPngPath) || !File.Exists(tempPngPath))
                     {
-                        Core.Instance.Loggers.Log("[PTBubbles] Failed to generate chart screenshot.");
+                        Core.Instance.Loggers.Log("[VolΔBubbles] Failed to generate chart screenshot.");
                         return;
                     }
 
@@ -165,7 +165,7 @@ namespace VolumeDeltaBubbles
                 }
                 catch (Exception ex)
                 {
-                    Core.Instance.Loggers.Log($"[PTBubbles] Telegram send error: {ex.Message}");
+                    Core.Instance.Loggers.Log($"[VolΔBubbles] Telegram send error: {ex.Message}");
                 }
                 finally
                 {
@@ -182,7 +182,7 @@ namespace VolumeDeltaBubbles
 
         /// <summary>
         /// Generates a pristine, high-definition standalone trading chart image (1440x840) directly in memory.
-        /// Renders real candles, price/time grids, Power Trades bubbles with exact sizes/colors, volume histogram,
+        /// Renders real candles, price/time grids, Volume Delta bubbles with exact sizes/colors, volume histogram,
         /// and alert event badges. 100% immune to window occlusion, minimization, or desktop switching.
         /// </summary>
         public string RenderOffscreenChart(string symbol, string alertDirection, string alertEventType, double alertPrice, double alertVolume, double alertDelta, DateTime alertTime)
@@ -192,7 +192,7 @@ namespace VolumeDeltaBubbles
                 int totalBars = this.HistoricalData?.Count ?? 0;
                 if (totalBars == 0)
                 {
-                    Core.Instance.Loggers.Log("[PTBubbles] Direct chart render skipped: no historical bars available.");
+                    Core.Instance.Loggers.Log("[VolΔBubbles] Direct chart render skipped: no historical bars available.");
                     return null;
                 }
 
@@ -267,7 +267,7 @@ namespace VolumeDeltaBubbles
                     return chartLeft + ratio * chartWidth;
                 }
 
-                string fileName = $"PTBubbles_Direct_{symbol}_{DateTime.UtcNow:yyyyMMdd_HHmmssfff}.png";
+                string fileName = $"VolDeltaBubbles_Direct_{symbol}_{DateTime.UtcNow:yyyyMMdd_HHmmssfff}.png";
                 string fullPath = Path.Combine(Path.GetTempPath(), fileName);
 
                 using (var bmp = new Bitmap(imgWidth, imgHeight, System.Drawing.Imaging.PixelFormat.Format32bppArgb))
@@ -366,7 +366,7 @@ namespace VolumeDeltaBubbles
                         }
                     }
 
-                    // ── 6. Power Trades Bubbles ───────────────────────────────────────
+                    // ── 6. Volume Delta Bubbles ───────────────────────────────────────
                     var snapshot = _ptZoneSnapshot;
                     double maxMetric = 0;
                     bool isCum = (this.SizingMetric == BubbleSizingMetric.CumulativeVolume);
@@ -466,7 +466,7 @@ namespace VolumeDeltaBubbles
                     using (var subFont = new System.Drawing.Font("Segoe UI", 10f, System.Drawing.FontStyle.Regular))
                     {
                         gr.DrawString(symbol, titleFont, GdiBrushes.White, 20, 10);
-                        string subText = $"Power Trades Bubbles • {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC • Close: {closes[count - 1]:F2}";
+                        string subText = $"Volume Delta Bubbles • {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC • Close: {closes[count - 1]:F2}";
                         gr.DrawString(subText, subFont, new SolidBrush(Color.FromArgb(255, 140, 148, 165)), 20, 38);
                     }
 
@@ -509,18 +509,18 @@ namespace VolumeDeltaBubbles
                     using (var wmFont = new System.Drawing.Font("Segoe UI", 9f, System.Drawing.FontStyle.Italic))
                     using (var wmBrush = new SolidBrush(Color.FromArgb(70, 255, 255, 255)))
                     {
-                        gr.DrawString("Power Trades Bubbles • Quantower Native Engine", wmFont, wmBrush, chartLeft + 8, chartBottom - 18);
+                        gr.DrawString("Volume Delta Bubbles • Quantower Native Engine", wmFont, wmBrush, chartLeft + 8, chartBottom - 18);
                     }
 
                     bmp.Save(fullPath, ImageFormat.Png);
                 }
 
-                Core.Instance.Loggers.Log($"[PTBubbles] Rendered offscreen chart image (1440x840): {fullPath}");
+                Core.Instance.Loggers.Log($"[VolΔBubbles] Rendered offscreen chart image (1440x840): {fullPath}");
                 return fullPath;
             }
             catch (Exception ex)
             {
-                Core.Instance.Loggers.Log($"[PTBubbles] Direct chart render exception: {ex.Message}");
+                Core.Instance.Loggers.Log($"[VolΔBubbles] Direct chart render exception: {ex.Message}");
                 return null;
             }
         }
@@ -539,11 +539,11 @@ namespace VolumeDeltaBubbles
                 Rectangle bounds = ResolveChartScreenBounds();
                 if (bounds.Width <= 0 || bounds.Height <= 0)
                 {
-                    Core.Instance.Loggers.Log("[PTBubbles] Screenshot bounds are empty or invalid.");
+                    Core.Instance.Loggers.Log("[VolΔBubbles] Screenshot bounds are empty or invalid.");
                     return null;
                 }
 
-                string fileName = $"PTBubbles_Screen_{symbol}_{DateTime.UtcNow:yyyyMMdd_HHmmssfff}.png";
+                string fileName = $"VolDeltaBubbles_Screen_{symbol}_{DateTime.UtcNow:yyyyMMdd_HHmmssfff}.png";
                 string fullPath = Path.Combine(Path.GetTempPath(), fileName);
 
                 using (var bmp = new Bitmap(bounds.Width, bounds.Height, System.Drawing.Imaging.PixelFormat.Format32bppArgb))
@@ -556,12 +556,12 @@ namespace VolumeDeltaBubbles
                     bmp.Save(fullPath, ImageFormat.Png);
                 }
 
-                Core.Instance.Loggers.Log($"[PTBubbles] Chart screen capture: {bounds.Width}x{bounds.Height} at ({bounds.X},{bounds.Y}) -> {fullPath}");
+                Core.Instance.Loggers.Log($"[VolΔBubbles] Chart screen capture: {bounds.Width}x{bounds.Height} at ({bounds.X},{bounds.Y}) -> {fullPath}");
                 return fullPath;
             }
             catch (Exception ex)
             {
-                Core.Instance.Loggers.Log($"[PTBubbles] Screenshot capture exception: {ex.Message}");
+                Core.Instance.Loggers.Log($"[VolΔBubbles] Screenshot capture exception: {ex.Message}");
                 return null;
             }
         }
@@ -589,7 +589,7 @@ namespace VolumeDeltaBubbles
             }
             catch (Exception ex)
             {
-                Core.Instance.Loggers.Log($"[PTBubbles] Error in ResolveChartScreenBounds: {ex.Message}");
+                Core.Instance.Loggers.Log($"[VolΔBubbles] Error in ResolveChartScreenBounds: {ex.Message}");
                 return Screen.PrimaryScreen?.Bounds ?? new Rectangle(0, 0, 1920, 1080);
             }
         }
@@ -779,12 +779,12 @@ namespace VolumeDeltaBubbles
                 var response = await _httpClient.PostAsync(url, form);
                 if (response.IsSuccessStatusCode)
                 {
-                    Core.Instance.Loggers.Log("[PTBubbles] Telegram screenshot delivered successfully.");
+                    Core.Instance.Loggers.Log("[VolΔBubbles] Telegram screenshot delivered successfully.");
                 }
                 else
                 {
                     string respBody = await response.Content.ReadAsStringAsync();
-                    Core.Instance.Loggers.Log($"[PTBubbles] Telegram sendPhoto HTTP {response.StatusCode}: {respBody}");
+                    Core.Instance.Loggers.Log($"[VolΔBubbles] Telegram sendPhoto HTTP {response.StatusCode}: {respBody}");
                 }
             }
         }

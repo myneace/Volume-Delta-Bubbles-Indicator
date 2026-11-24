@@ -14,7 +14,7 @@ namespace VolumeDeltaBubbles
         public string Symbol { get; set; } = string.Empty;
         public DateTime LastSavedUtc { get; set; } = DateTime.UtcNow;
 
-        // Power Trades Filter Parameters
+        // Volume Delta Filter Parameters
         public int LookbackMinutes { get; set; } = 30;
         public double TotalVolume { get; set; } = 100;
         public double MinTradeVolume { get; set; } = 0;
@@ -166,13 +166,13 @@ namespace VolumeDeltaBubbles
                 string json = JsonSerializer.Serialize(profile, new JsonSerializerOptions { WriteIndented = true });
                 File.WriteAllText(path, json);
 
-                Core.Instance.Loggers.Log($"[PTBubbles] Saved custom symbol parameters for '{activeSymbol}' to {path}");
+                Core.Instance.Loggers.Log($"[VolΔBubbles] Saved custom symbol parameters for '{activeSymbol}' to {path}");
 
                 if (showUiFeedback)
                 {
                     System.Windows.Forms.MessageBox.Show(
                         $"Custom parameters for symbol '{activeSymbol}' saved successfully!\n\nFile:\n{path}",
-                        "Power Trades Bubbles",
+                        "Volume Delta Bubbles",
                         System.Windows.Forms.MessageBoxButtons.OK,
                         System.Windows.Forms.MessageBoxIcon.Information);
                 }
@@ -180,12 +180,12 @@ namespace VolumeDeltaBubbles
             }
             catch (Exception ex)
             {
-                Core.Instance.Loggers.Log($"[PTBubbles] Error saving symbol parameters: {ex.Message}");
+                Core.Instance.Loggers.Log($"[VolΔBubbles] Error saving symbol parameters: {ex.Message}");
                 if (showUiFeedback)
                 {
                     System.Windows.Forms.MessageBox.Show(
                         $"Error saving parameters: {ex.Message}",
-                        "Power Trades Bubbles",
+                        "Volume Delta Bubbles",
                         System.Windows.Forms.MessageBoxButtons.OK,
                         System.Windows.Forms.MessageBoxIcon.Error);
                 }
@@ -210,12 +210,12 @@ namespace VolumeDeltaBubbles
 
                 if (!File.Exists(path))
                 {
-                    Core.Instance.Loggers.Log($"[PTBubbles] No saved parameters found for symbol '{activeSymbol}' at {path}");
+                    Core.Instance.Loggers.Log($"[VolΔBubbles] No saved parameters found for symbol '{activeSymbol}' at {path}");
                     if (showUiFeedback)
                     {
                         System.Windows.Forms.MessageBox.Show(
                             $"No saved parameter profile found for symbol '{activeSymbol}'.\n\nConfigure your parameters and click 'Save Symbol Parameters' to create a profile.",
-                            "Power Trades Bubbles",
+                            "Volume Delta Bubbles",
                             System.Windows.Forms.MessageBoxButtons.OK,
                             System.Windows.Forms.MessageBoxIcon.Information);
                     }
@@ -272,20 +272,20 @@ namespace VolumeDeltaBubbles
                 if (profile.MaxCachedDays > 0)
                     this.MaxCachedDays = profile.MaxCachedDays;
 
-                // Re-subscribe to Power Trades data feed if aggregate filter settings changed
+                // Re-subscribe to Volume Delta data feed if aggregate filter settings changed
                 if (ptFiltersChanged && _powerTradesData != null)
                 {
                     ReSubscribePowerTrades();
                 }
 
                 this.CurrentChart?.RedrawBuffer();
-                Core.Instance.Loggers.Log($"[PTBubbles] Loaded custom symbol parameters for '{activeSymbol}' from disk.");
+                Core.Instance.Loggers.Log($"[VolΔBubbles] Loaded custom symbol parameters for '{activeSymbol}' from disk.");
 
                 if (showUiFeedback)
                 {
                     System.Windows.Forms.MessageBox.Show(
                         $"Custom parameters for symbol '{activeSymbol}' loaded successfully!",
-                        "Power Trades Bubbles",
+                        "Volume Delta Bubbles",
                         System.Windows.Forms.MessageBoxButtons.OK,
                         System.Windows.Forms.MessageBoxIcon.Information);
                 }
@@ -293,12 +293,12 @@ namespace VolumeDeltaBubbles
             }
             catch (Exception ex)
             {
-                Core.Instance.Loggers.Log($"[PTBubbles] Error loading symbol parameters: {ex.Message}");
+                Core.Instance.Loggers.Log($"[VolΔBubbles] Error loading symbol parameters: {ex.Message}");
                 if (showUiFeedback)
                 {
                     System.Windows.Forms.MessageBox.Show(
                         $"Error loading parameters: {ex.Message}",
-                        "Power Trades Bubbles",
+                        "Volume Delta Bubbles",
                         System.Windows.Forms.MessageBoxButtons.OK,
                         System.Windows.Forms.MessageBoxIcon.Error);
                 }
@@ -316,12 +316,12 @@ namespace VolumeDeltaBubbles
                 if (File.Exists(path))
                 {
                     File.Delete(path);
-                    Core.Instance.Loggers.Log($"[PTBubbles] Deleted saved symbol parameters for '{activeSymbol}'.");
+                    Core.Instance.Loggers.Log($"[VolΔBubbles] Deleted saved symbol parameters for '{activeSymbol}'.");
                     if (showUiFeedback)
                     {
                         System.Windows.Forms.MessageBox.Show(
                             $"Saved parameter profile for symbol '{activeSymbol}' has been deleted.",
-                            "Power Trades Bubbles",
+                            "Volume Delta Bubbles",
                             System.Windows.Forms.MessageBoxButtons.OK,
                             System.Windows.Forms.MessageBoxIcon.Information);
                     }
@@ -333,7 +333,7 @@ namespace VolumeDeltaBubbles
                     {
                         System.Windows.Forms.MessageBox.Show(
                             $"No saved parameter profile exists for symbol '{activeSymbol}'.",
-                            "Power Trades Bubbles",
+                            "Volume Delta Bubbles",
                             System.Windows.Forms.MessageBoxButtons.OK,
                             System.Windows.Forms.MessageBoxIcon.Information);
                     }
@@ -342,12 +342,12 @@ namespace VolumeDeltaBubbles
             }
             catch (Exception ex)
             {
-                Core.Instance.Loggers.Log($"[PTBubbles] Error deleting symbol parameters: {ex.Message}");
+                Core.Instance.Loggers.Log($"[VolΔBubbles] Error deleting symbol parameters: {ex.Message}");
                 if (showUiFeedback)
                 {
                     System.Windows.Forms.MessageBox.Show(
                         $"Error deleting parameters: {ex.Message}",
-                        "Power Trades Bubbles",
+                        "Volume Delta Bubbles",
                         System.Windows.Forms.MessageBoxButtons.OK,
                         System.Windows.Forms.MessageBoxIcon.Error);
                 }
@@ -444,12 +444,12 @@ namespace VolumeDeltaBubbles
                 // the newly loaded history buffer.
                 RebuildFromBuffer();
 
-                Core.Instance.Loggers.Log($"[PTBubbles] Re-subscribed Power Trades feed with updated filters.");
+                Core.Instance.Loggers.Log($"[VolΔBubbles] Re-subscribed Volume Delta feed with updated filters.");
 
             }
             catch (Exception ex)
             {
-                Core.Instance.Loggers.Log($"[PTBubbles] Error re-subscribing Power Trades feed: {ex.Message}");
+                Core.Instance.Loggers.Log($"[VolΔBubbles] Error re-subscribing Volume Delta feed: {ex.Message}");
             }
         }
     }
